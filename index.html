@@ -1,0 +1,1423 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电价 Excel 分析</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(15, 27, 46, 0.86);
+      --panel-strong: rgba(20, 37, 62, 0.96);
+      --border: rgba(109, 131, 164, 0.22);
+      --text: #edf4ff;
+      --muted: #8ea1bd;
+      --accent: #4f8cff;
+      --accent-2: #22d3ee;
+      --green: #22c55e;
+      --red: #ef4444;
+      --gold: #fbbf24;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(79, 140, 255, 0.18), transparent 28rem),
+        radial-gradient(circle at 86% 10%, rgba(34, 211, 238, 0.12), transparent 24rem),
+        linear-gradient(135deg, #07111f 0%, #09172a 46%, #06101d 100%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 72%);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.35rem 2rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(7, 17, 31, 0.86);
+      backdrop-filter: blur(16px);
+    }
+    header h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: 0.04em; }
+    header p { color: var(--muted); font-size: 0.875rem; margin-top: 0.35rem; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .file-input-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .toolbar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.45rem;
+      background: rgba(11, 24, 43, 0.78);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    }
+    label.select-label { font-size: 0.78rem; color: var(--muted); margin-left: 0.3rem; }
+    select, .btn {
+      background: rgba(17, 32, 54, 0.95);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.56rem 0.92rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    select { min-width: 150px; }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent), #2563eb);
+      border-color: rgba(147, 197, 253, 0.45);
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+    }
+    .btn:hover { border-color: var(--accent-2); transform: translateY(-1px); }
+    main { position: relative; z-index: 1; padding: 1.25rem 2rem 2rem; width: 100%; }
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: calc(100vh - 130px);
+      color: var(--muted);
+    }
+    .empty-card {
+      width: min(720px, 92vw);
+      padding: 2.4rem;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(20, 37, 62, 0.9), rgba(9, 23, 42, 0.9));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .empty-title { color: var(--text); font-size: 1.35rem; font-weight: 700; }
+    .empty-desc { margin: 0.65rem auto 1.2rem; max-width: 520px; font-size: 0.9rem; }
+    #content {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 1rem;
+      align-items: start;
+    }
+    .overview {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(22, 43, 74, 0.92), rgba(12, 26, 47, 0.92));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1rem 1.1rem;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+    }
+    .stat-card::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+      opacity: 0.7;
+    }
+    .stat-card .label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
+    .stat-card .value { font-size: 1.45rem; font-weight: 750; margin-top: 0.32rem; }
+    section.block {
+      grid-column: span 6;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    section.block.wide { grid-column: span 12; }
+    section.block h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.35rem; letter-spacing: 0.02em; }
+    section.block .hint { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .block-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+    }
+    .block-title h2 { margin-bottom: 0; }
+    .card-day-select {
+      min-width: 128px;
+      padding: 0.38rem 0.65rem;
+      font-size: 0.78rem;
+      border-radius: 999px;
+    }
+    .chart { width: 100%; height: 390px; }
+    .chart.tall { height: 430px; }
+    .chart.short { height: 320px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 1200px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .toolbar { justify-content: flex-start; }
+      .overview { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
+      section.block { grid-column: span 12; }
+    }
+    @media (max-width: 900px) {
+      main { padding: 1rem; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .overview { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid rgba(109, 131, 164, 0.12);
+      border-radius: 14px;
+      background: rgba(5, 12, 24, 0.22);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .detail-table {
+      font-size: 0.9rem;
+    }
+    .detail-table th,
+    .detail-table td {
+      padding: 0.68rem 0.78rem;
+    }
+    th, td { padding: 0.58rem 0.7rem; text-align: right; border-bottom: 1px solid rgba(109, 131, 164, 0.16); }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: #b8c7dc; font-weight: 600; background: rgba(16, 34, 58, 0.88); position: sticky; top: 0; }
+    tr:hover td { background: rgba(79, 140, 255, 0.08); }
+    .pos { color: var(--red); }
+    .neg { color: var(--green); }
+    .hidden { display: none !important; }
+    .err { grid-column: 1 / -1; color: var(--red); font-size: 0.875rem; padding: 0.8rem 2rem 0; }
+    .warn { grid-column: 1 / -1; color: var(--gold); font-size: 0.8rem; margin: -0.2rem 0 0.2rem; }
+    .day-stats { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .day-stats span {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(6, 14, 27, 0.45);
+      border: 1px solid rgba(109, 131, 164, 0.16);
+      padding: 0.45rem 0.72rem;
+      border-radius: 999px;
+    }
+    .day-stats strong { color: var(--text); }
+    .file-status {
+      max-width: 360px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .insight-panel {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 1rem;
+    }
+    .top-summary-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(140px, 1fr));
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .top-summary-row .overview,
+    .top-summary-row .insight-panel {
+      display: contents;
+    }
+    .insight-card {
+      padding: 1rem 1.1rem;
+      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .insight-card .label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-bottom: 0.35rem;
+    }
+    .insight-card .headline {
+      color: var(--text);
+      font-size: 1.08rem;
+      font-weight: 750;
+      margin-bottom: 0.3rem;
+    }
+    .insight-card .desc {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .chart-guide {
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin: -0.15rem 0 0.65rem;
+    }
+    .section-label {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      color: var(--text);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      margin-top: 0.1rem;
+    }
+    .section-label span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .scope-tag {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0.45rem;
+      padding: 0.18rem 0.48rem;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .scope-current { background: linear-gradient(135deg, #2563eb, #0ea5e9); }
+    .scope-all { background: linear-gradient(135deg, #64748b, #475569); }
+
+    /* Light glass dashboard theme */
+    :root {
+      --bg: #eef5ff;
+      --panel: rgba(255, 255, 255, 0.68);
+      --panel-strong: rgba(255, 255, 255, 0.86);
+      --border: rgba(76, 104, 140, 0.18);
+      --text: #142033;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-2: #0ea5e9;
+      --green: #059669;
+      --red: #dc2626;
+      --gold: #b45309;
+      --shadow: 0 18px 46px rgba(76, 104, 140, 0.18);
+    }
+    body {
+      background:
+        radial-gradient(circle at 12% 4%, rgba(96, 165, 250, 0.34), transparent 28rem),
+        radial-gradient(circle at 86% 12%, rgba(125, 211, 252, 0.3), transparent 24rem),
+        linear-gradient(135deg, #f8fbff 0%, #edf5ff 48%, #f7fbff 100%);
+      color: var(--text);
+    }
+    body::before {
+      background-image:
+        linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px);
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.42), transparent 72%);
+    }
+    header {
+      background: rgba(255, 255, 255, 0.64);
+      box-shadow: 0 10px 34px rgba(76, 104, 140, 0.12);
+    }
+    .toolbar-group,
+    select,
+    .btn,
+    .empty-card,
+    .stat-card,
+    section.block,
+    .details-panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .btn.primary {
+      color: #fff;
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      border-color: rgba(255, 255, 255, 0.82);
+    }
+    .btn:not(.primary), select {
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--text);
+    }
+    .empty-card,
+    .stat-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.58));
+    }
+    .stat-card::after {
+      background: linear-gradient(90deg, transparent, rgba(37,99,235,0.6), transparent);
+    }
+    .dashboard-shell {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 1rem;
+      min-height: calc(100vh - 124px);
+      align-content: start;
+    }
+    .dashboard-shell .overview { grid-column: 1 / -1; }
+    .hero-chart { grid-column: span 6; }
+    .side-chart { grid-column: span 6; }
+    .third-chart { grid-column: span 4; }
+    .half-chart { grid-column: span 6; }
+    .right-column {
+      grid-column: span 6;
+      display: grid;
+      gap: 1rem;
+    }
+    .dashboard-shell .chart { height: 300px; }
+    .dashboard-shell .chart.short { height: 250px; }
+    .dashboard-shell .chart.tall { height: 300px; }
+    .details-panel {
+      grid-column: 1 / -1;
+      border-radius: 22px;
+      overflow: hidden;
+    }
+    .details-panel > summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.2rem;
+      cursor: pointer;
+      color: var(--text);
+      font-weight: 700;
+    }
+    .details-panel > summary::-webkit-details-marker { display: none; }
+    .details-panel > summary::after {
+      content: "展开";
+      color: var(--accent);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .details-panel[open] > summary::after { content: "收起"; }
+    .details-content {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 1rem;
+      padding: 0 1rem 1rem;
+    }
+    .table-wrap {
+      background: rgba(255,255,255,0.48);
+      border-color: rgba(76, 104, 140, 0.12);
+    }
+    th {
+      color: #334155;
+      background: rgba(241, 245, 249, 0.92);
+    }
+    tr:hover td { background: rgba(37, 99, 235, 0.06); }
+    .day-stats span {
+      background: rgba(255,255,255,0.56);
+      border-color: rgba(76, 104, 140, 0.16);
+    }
+    @media (max-width: 1200px) {
+      .hero-chart, .side-chart, .third-chart, .half-chart { grid-column: span 12; }
+      .dashboard-shell { min-height: auto; }
+      .insight-panel { grid-template-columns: 1fr; }
+      .top-summary-row { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>用户侧电价 Excel 分析</h1>
+      <p>24 点分时数据 · 多日期工作表 · ECharts 可视化</p>
+    </div>
+    <div class="toolbar">
+      <input class="file-input-hidden" type="file" id="fileInput" accept=".xlsx,.xls" />
+      <div class="toolbar-group" id="importGroup">
+        <label for="fileInput" class="btn primary" id="importLabel">导入 xlsx</label>
+      </div>
+      <button type="button" id="reimportBtn" class="btn primary hidden">重新导入</button>
+      <div class="toolbar-group hidden" id="analysisControls">
+        <span id="fileStatus" class="file-status hidden"></span>
+        <select id="daySelect" class="hidden"></select>
+      </div>
+    </div>
+  </header>
+  <p id="errorMsg" class="err hidden"></p>
+  <main>
+    <div id="emptyState" class="empty">
+      <div class="empty-card">
+        <p class="empty-title">导入电价 xlsx，生成大屏分析</p>
+        <p class="empty-desc">工作表名如 5.12；时刻顺序 1:00→23:00→0:00（24 点）；日期列合并单元格会自动向下填充。</p>
+        <label for="fileInput" class="btn primary">选择 xlsx 文件</label>
+      </div>
+    </div>
+    <div id="content" class="hidden">
+      <div class="dashboard-shell">
+        <div class="top-summary-row">
+          <div class="overview" id="overview"></div>
+          <section class="insight-panel" id="insightPanel"></section>
+        </div>
+        <p id="rowWarn" class="warn hidden"></p>
+
+        <section class="block hero-chart">
+          <div class="block-title">
+            <h2>分时电价曲线（日前 / 实时 / 滚动撮合）</h2>
+            <select class="card-day-select" aria-label="选择当前日期"></select>
+          </div>
+          <p class="chart-guide">三条线越分开，说明日前、实时、滚动撮合价格差异越明显。</p>
+          <div id="chartPrice" class="chart"></div>
+        </section>
+
+        <section class="block side-chart">
+          <div class="block-title">
+            <h2>分时价差（实时 − 日前）</h2>
+            <select class="card-day-select" aria-label="选择当前日期"></select>
+          </div>
+          <p class="chart-guide">红色表示实时比日前贵，绿色表示实时比日前便宜，柱子越高偏差越大。</p>
+          <div id="chartSpread" class="chart"></div>
+        </section>
+
+        <section class="block third-chart" id="dayDetailBlock">
+          <div class="block-title">
+            <h2>分时段汇总（峰 / 平 / 谷）</h2>
+            <select class="card-day-select" aria-label="选择当前日期"></select>
+          </div>
+          <p class="hint">价差方向见下方文字；逐点价差见「分时价差」图；跨日见价差热力图</p>
+          <div class="day-stats" id="daySpreadStats"></div>
+          <div id="chartSegment" class="chart short"></div>
+          <div class="table-wrap" style="margin-top:0.75rem;">
+            <table id="segmentTable">
+              <thead>
+                <tr>
+                  <th>时段</th>
+                  <th>时刻范围</th>
+                  <th>点数</th>
+                  <th>日前均</th>
+                  <th>实时均</th>
+                  <th>价差均</th>
+                  <th>滚动均</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="right-column">
+          
+          <section class="block">
+            <h2>跨日均价与波动对比</h2>
+            <p class="chart-guide">柱子看每天价格水平，折线看平均价差和日前波动。</p>
+            <div id="chartDaily" class="chart short"></div>
+          </section>
+
+          <section class="block">
+            <h2>价差热力图（日期 × 24 时刻）</h2>
+            <p class="chart-guide">红色代表实时更贵，绿色代表实时更便宜，颜色越深越需要关注。</p>
+            <div id="chartHeatmapSpread" class="chart tall"></div>
+          </section>
+        </div>
+
+        <details class="details-panel">
+          <summary>完整详情分析</summary>
+          <div class="details-content">
+            <section class="block wide">
+              <h2>逐日汇总（含分位数与波动）</h2>
+              <p class="hint">P10/P50/P90 为日前电价分位数；波动率 = 日前标准差；滚动贴近 = 滚动撮合均价更接近日前或实时（按平均绝对偏差）</p>
+              <div class="table-wrap">
+                <table id="summaryTable" class="detail-table">
+                  <thead>
+                    <tr>
+                      <th>工作表</th>
+                      <th>行数</th>
+                      <th>日前均</th>
+                      <th>实时均</th>
+                      <th>滚动均</th>
+                      <th>价差均</th>
+                      <th>实时&gt;日前占比</th>
+                      <th>日前P10</th>
+                      <th>日前P50</th>
+                      <th>日前P90</th>
+                      <th>日前波动</th>
+                      <th>滚动贴近</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="block wide">
+              <h2>极端时刻 Top 10（全表）</h2>
+              <p class="hint">跨所有工作表汇总，便于快速定位风险时段</p>
+              <div class="grid-2">
+                <div class="table-wrap">
+                  <table id="topSpreadPos" class="detail-table"><thead><tr><th>日期</th><th>时刻</th><th>价差</th><th>日前</th><th>实时</th></tr></thead><tbody></tbody></table>
+                </div>
+                <div class="table-wrap">
+                  <table id="topSpreadNeg" class="detail-table"><thead><tr><th>日期</th><th>时刻</th><th>价差</th><th>日前</th><th>实时</th></tr></thead><tbody></tbody></table>
+                </div>
+              </div>
+              <div class="grid-2" style="margin-top:1rem;">
+                <div class="table-wrap">
+                  <table id="topPriceHigh" class="detail-table"><thead><tr><th>日期</th><th>时刻</th><th>日前</th><th>实时</th></tr></thead><tbody></tbody></table>
+                </div>
+                <div class="table-wrap">
+                  <table id="topPriceLow" class="detail-table"><thead><tr><th>日期</th><th>时刻</th><th>日前</th><th>实时</th></tr></thead><tbody></tbody></table>
+                </div>
+              </div>
+            </section>
+
+            <section class="block wide">
+              <h2>典型时刻跨日对比（10 / 14 / 18 / 20 点）</h2>
+              <p class="hint">若表中时刻标签不完全一致，将匹配最接近的整点</p>
+              <div id="chartCrossHour" class="chart"></div>
+            </section>
+
+            <section class="block wide">
+              <h2>日前电价热力图（日期 × 24 时刻）</h2>
+              <div id="chartHeatmap" class="chart tall"></div>
+            </section>
+          </div>
+        </details>
+      </div>
+    </div>
+  </main>
+  <script>
+    const COLS = {
+      date: '日期',
+      time: '时刻',
+      dayAhead: '日前用户侧统一结算电价',
+      realTime: '实时用户侧统一结算电价',
+      rolling: '滚动撮合均价'
+    };
+    const PRICE_DECIMALS = 6;
+    const DISPLAY_DECIMALS = 4;
+    const EXPECTED_POINTS = 24;
+    const TOP_N = 10;
+    const CACHE_KEY = 'electricity-price-analysis-cache-v1';
+    const CROSS_HOURS = [10, 14, 18, 20];
+    const SEGMENTS = [
+      { id: 'valley', name: '谷段', desc: '00:00–07:59', match: (h) => h >= 0 && h < 8 },
+      { id: 'peak', name: '峰段', desc: '09:00–11:59, 17:00–21:59', match: (h) => (h >= 9 && h < 12) || (h >= 17 && h < 22) },
+      { id: 'flat', name: '平段', desc: '其余时刻', match: (h) => !((h >= 0 && h < 8) || (h >= 9 && h < 12) || (h >= 17 && h < 22)) }
+    ];
+
+    let parsedDays = [];
+    let charts = {};
+    let lastSummaries = [];
+
+    const fileInput = document.getElementById('fileInput');
+    const daySelect = document.getElementById('daySelect');
+    const cardDaySelects = Array.from(document.querySelectorAll('.card-day-select'));
+    const importGroup = document.getElementById('importGroup');
+    const reimportBtn = document.getElementById('reimportBtn');
+    const analysisControls = document.getElementById('analysisControls');
+    const detailsPanel = document.querySelector('.details-panel');
+    const fileStatus = document.getElementById('fileStatus');
+    let currentFileName = '';
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.toggle('hidden', !msg);
+    }
+
+    /** 定点舍入，避免 JS 浮点累加误差（电价最多保留 6 位小数） */
+    function decFix(n, places = PRICE_DECIMALS) {
+      if (n == null || !Number.isFinite(n)) return null;
+      const f = 10 ** places;
+      return Math.round(n * f) / f;
+    }
+
+    function toNum(v) {
+      if (v == null || v === '') return null;
+      const n = Number(String(v).replace(/,/g, '').trim());
+      return Number.isFinite(n) ? decFix(n) : null;
+    }
+
+    function decSub(a, b) {
+      if (a == null || b == null) return null;
+      return decFix(a - b);
+    }
+
+    function decSum(arr) {
+      let s = 0;
+      let has = false;
+      for (const x of arr) {
+        if (x != null) { s += x; has = true; }
+      }
+      return has ? decFix(s) : null;
+    }
+
+    function mean(arr) {
+      const a = arr.filter((x) => x != null);
+      if (!a.length) return null;
+      return decFix(decSum(a) / a.length);
+    }
+
+    function stdDev(arr) {
+      const a = arr.filter((x) => x != null);
+      if (a.length < 2) return null;
+      const m = mean(a);
+      const v = a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1);
+      return decFix(Math.sqrt(v));
+    }
+
+    function percentile(arr, p) {
+      const a = arr.filter((x) => x != null).sort((x, y) => x - y);
+      if (!a.length) return null;
+      const idx = (a.length - 1) * p;
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
+      if (lo === hi) return decFix(a[lo]);
+      return decFix(a[lo] + (a[hi] - a[lo]) * (idx - lo));
+    }
+
+    function fmt(n, d = DISPLAY_DECIMALS) {
+      if (n == null || !Number.isFinite(n)) return '—';
+      return decFix(n, d).toFixed(d);
+    }
+
+    function pct(n) {
+      if (n == null || !Number.isFinite(n)) return '—';
+      return (n * 100).toFixed(1) + '%';
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[c]));
+    }
+
+    function normalizeHeader(h) {
+      return String(h ?? '').replace(/\s/g, '').trim();
+    }
+
+    function findColIndex(headers, target) {
+      const t = normalizeHeader(target);
+      return headers.findIndex((h) => normalizeHeader(h) === t);
+    }
+
+    function chinaDateParts(d) {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).formatToParts(d);
+      const get = (type) => parseInt(parts.find((p) => p.type === type)?.value || '0', 10);
+      return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour'), minute: get('minute') };
+    }
+
+    function formatTime(v) {
+      if (v instanceof Date && !isNaN(v)) {
+        const { hour, minute } = chinaDateParts(v);
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      }
+      if (typeof v === 'number' && v > 0 && v < 1) {
+        const h = Math.round(v * 24) % 24;
+        return `${String(h).padStart(2, '0')}:00`;
+      }
+      const s = String(v).trim();
+      const hm = s.match(/^(\d{1,2})[:：](\d{1,2})/);
+      if (hm) {
+        const h = parseInt(hm[1], 10) % 24;
+        const m = hm[2].padStart(2, '0').slice(0, 2);
+        return `${String(h).padStart(2, '0')}:${m}`;
+      }
+      if (/^\d{1,2}$/.test(s)) {
+        const h = parseInt(s, 10) % 24;
+        return `${String(h).padStart(2, '0')}:00`;
+      }
+      if (/GMT|标准时间|UTC/.test(s)) {
+        const d = new Date(s);
+        if (!isNaN(d)) {
+          const { hour, minute } = chinaDateParts(d);
+          return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        }
+      }
+      return s;
+    }
+
+    /** 从时刻解析小时 0–23（与 Excel 显示一致，0:00 为 0 点） */
+    function parseHour(v) {
+      if (v instanceof Date && !isNaN(v)) return chinaDateParts(v).hour % 24;
+      if (typeof v === 'number' && v >= 0 && v < 1) return Math.round(v * 24) % 24;
+      const s = String(v).trim();
+      const hm = s.match(/^(\d{1,2})[:：]/);
+      if (hm) return parseInt(hm[1], 10) % 24;
+      const n = Number(s);
+      if (Number.isFinite(n) && n >= 0 && n <= 24) return n === 24 ? 0 : n;
+      return 0;
+    }
+
+    /** Excel 行序：1:00…23:00 后接 0:00（0 点排在最后） */
+    function timeSortOrder(hour) {
+      return hour === 0 ? 24 : hour;
+    }
+
+    /** 固定按中国大陆（Asia/Shanghai）日历日 */
+    function formatDateChina(d) {
+      const { year, month, day } = chinaDateParts(d);
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function formatCalendarDate(v) {
+      if (v instanceof Date && !isNaN(v)) return formatDateChina(v);
+      if (typeof v === 'number' && v > 40000) {
+        const dc = XLSX.SSF?.parse_date_code?.(v);
+        if (dc) {
+          return `${dc.y}-${String(dc.m).padStart(2, '0')}-${String(dc.d).padStart(2, '0')}`;
+        }
+      }
+      const s = String(v).trim();
+      const m = s.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+      if (/GMT|标准时间|UTC|\d{4}\/\d/.test(s)) {
+        const d = new Date(s);
+        if (!isNaN(d)) return formatDateChina(d);
+      }
+      return s;
+    }
+
+    function hourOf(point) {
+      return point.hour;
+    }
+
+    function segmentOf(hour) {
+      for (const seg of SEGMENTS) {
+        if (seg.id === 'flat') continue;
+        if (seg.match(hour)) return seg;
+      }
+      return SEGMENTS.find((s) => s.id === 'flat');
+    }
+
+    function parseSheet(sheet, sheetName) {
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!rows.length) return null;
+
+      let headerRowIdx = 0;
+      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+        const hdr = rows[i].map((c) => String(c));
+        if (findColIndex(hdr, COLS.time) >= 0) {
+          headerRowIdx = i;
+          break;
+        }
+      }
+
+      const headers = rows[headerRowIdx].map((c) => String(c));
+      const idx = {
+        date: findColIndex(headers, COLS.date),
+        time: findColIndex(headers, COLS.time),
+        dayAhead: findColIndex(headers, COLS.dayAhead),
+        realTime: findColIndex(headers, COLS.realTime),
+        rolling: findColIndex(headers, COLS.rolling)
+      };
+
+      if (idx.time < 0) return { error: `工作表「${sheetName}」未找到列「${COLS.time}」` };
+
+      const points = [];
+      let lastCalendarDate = '';
+      for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row?.length) continue;
+        const timeRaw = row[idx.time];
+        if (timeRaw === '' || timeRaw == null) continue;
+
+        if (idx.date >= 0) {
+          const dv = row[idx.date];
+          if (dv !== '' && dv != null) lastCalendarDate = formatCalendarDate(dv);
+        }
+
+        const hour = parseHour(timeRaw);
+        const timeLabel = formatTime(timeRaw);
+        const sortOrder = timeSortOrder(hour);
+        const dayAhead = idx.dayAhead >= 0 ? toNum(row[idx.dayAhead]) : null;
+        const realTime = idx.realTime >= 0 ? toNum(row[idx.realTime]) : null;
+        const rolling = idx.rolling >= 0 ? toNum(row[idx.rolling]) : null;
+        const spread = dayAhead != null && realTime != null ? decSub(realTime, dayAhead) : null;
+
+        if ([dayAhead, realTime, rolling].every((x) => x == null)) continue;
+
+        points.push({
+          sheetName,
+          calendarDate: lastCalendarDate,
+          timeLabel,
+          sortOrder,
+          hour,
+          dayAhead,
+          realTime,
+          rolling,
+          spread
+        });
+      }
+
+      points.sort((a, b) => a.sortOrder - b.sortOrder);
+      return { sheetName, calendarDate: points[0]?.calendarDate || '', points };
+    }
+
+    function rollingAlignment(points) {
+      const diffs = points.filter((p) => p.rolling != null && p.dayAhead != null && p.realTime != null);
+      if (!diffs.length) return { label: '—', avgAbsDa: null, avgAbsRt: null };
+      const avgAbsDa = mean(diffs.map((p) => decFix(Math.abs(decSub(p.rolling, p.dayAhead)))));
+      const avgAbsRt = mean(diffs.map((p) => decFix(Math.abs(decSub(p.rolling, p.realTime)))));
+      const gap = Math.abs(avgAbsDa - avgAbsRt);
+      const threshold = 0.01;
+      let label = '相当';
+      if (avgAbsDa != null && avgAbsRt != null) {
+        if (avgAbsDa + threshold < avgAbsRt) label = '日前';
+        else if (avgAbsRt + threshold < avgAbsDa) label = '实时';
+      }
+      return { label, avgAbsDa, avgAbsRt };
+    }
+
+    function spreadDirection(points) {
+      const valid = points.filter((p) => p.spread != null);
+      if (!valid.length) return { up: 0, down: 0, flat: 0, upRatio: null, downRatio: null, meanAbs: null };
+      let up = 0, down = 0, flat = 0;
+      valid.forEach((p) => {
+        if (p.spread > 0) up++;
+        else if (p.spread < 0) down++;
+        else flat++;
+      });
+      const n = valid.length;
+      return {
+        up, down, flat,
+        upRatio: up / n,
+        downRatio: down / n,
+        meanAbs: mean(valid.map((p) => Math.abs(p.spread)))
+      };
+    }
+
+    function summarizeDay(day) {
+      const { points, sheetName } = day;
+      const da = points.map((p) => p.dayAhead);
+      const rt = points.map((p) => p.realTime);
+      const ro = points.map((p) => p.rolling);
+      const sp = points.map((p) => p.spread);
+      const dir = spreadDirection(points);
+      const roll = rollingAlignment(points);
+      const validDa = da.filter((x) => x != null);
+
+      return {
+        sheetName,
+        count: points.length,
+        dayAheadMean: mean(da),
+        realTimeMean: mean(rt),
+        rollingMean: mean(ro),
+        spreadMean: mean(sp),
+        spreadUpRatio: dir.upRatio,
+        dayAheadP10: percentile(da, 0.1),
+        dayAheadP50: percentile(da, 0.5),
+        dayAheadP90: percentile(da, 0.9),
+        dayAheadStd: stdDev(da),
+        dayAheadMax: validDa.length ? Math.max(...validDa) : null,
+        dayAheadMin: validDa.length ? Math.min(...validDa) : null,
+        rollingCloser: roll.label,
+        volatility: stdDev(da)
+      };
+    }
+
+    function segmentStats(points) {
+      return SEGMENTS.map((seg) => {
+        const subset = points.filter((p) => segmentOf(hourOf(p)).id === seg.id);
+        return {
+          ...seg,
+          count: subset.length,
+          dayAheadMean: mean(subset.map((p) => p.dayAhead)),
+          realTimeMean: mean(subset.map((p) => p.realTime)),
+          spreadMean: mean(subset.map((p) => p.spread)),
+          rollingMean: mean(subset.map((p) => p.rolling))
+        };
+      });
+    }
+
+    function allPointsFlat() {
+      return parsedDays.flatMap((d) =>
+        d.points.map((p) => ({ ...p, sheetName: d.sheetName }))
+      );
+    }
+
+    function topN(items, key, n, desc = true) {
+      const sorted = [...items].filter((x) => x[key] != null).sort((a, b) => desc ? b[key] - a[key] : a[key] - b[key]);
+      return sorted.slice(0, n);
+    }
+
+    function findTimeLabel(points, targetHour) {
+      const labels = [...new Set(points.map((p) => p.timeLabel))];
+      const exact = labels.find((l) => {
+        const m = l.match(/^(\d{1,2})/);
+        return m && parseInt(m[1], 10) === targetHour;
+      });
+      return exact || `${String(targetHour).padStart(2, '0')}:00`;
+    }
+
+    function sortSheetNames(names) {
+      return [...names].sort((a, b) => {
+        const pa = parseSheetDate(a);
+        const pb = parseSheetDate(b);
+        if (pa != null && pb != null) return pa - pb;
+        return String(a).localeCompare(String(b), 'zh-CN');
+      });
+    }
+
+    function parseSheetDate(name) {
+      const m = String(name).match(/(\d{1,2})\.(\d{1,2})/);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 100 + parseInt(m[2], 10);
+    }
+
+    function initChart(id) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      if (charts[id]) charts[id].dispose();
+      charts[id] = echarts.init(el, null, { renderer: 'canvas' });
+      return charts[id];
+    }
+
+    const axisStyle = { color: '#64748b' };
+    const gridLine = { lineStyle: { color: 'rgba(100, 116, 139, 0.18)' } };
+
+    function renderOverview(summaries) {
+      const avgSpread = mean(summaries.map((x) => x.spreadMean));
+      const avgUp = mean(summaries.map((x) => x.spreadUpRatio));
+      document.getElementById('overview').innerHTML = `
+        <div class="stat-card"><div class="label">全表日前均价</div><div class="value">${fmt(mean(summaries.map((x) => x.dayAheadMean)))}</div></div>
+        <div class="stat-card"><div class="label">全表实时均价</div><div class="value">${fmt(mean(summaries.map((x) => x.realTimeMean)))}</div></div>
+        <div class="stat-card"><div class="label">全表平均价差</div><div class="value">${fmt(avgSpread)}</div></div>
+        <div class="stat-card"><div class="label">平均实时&gt;日前占比</div><div class="value">${pct(avgUp)}</div></div>
+      `;
+
+      const bad = summaries.filter((s) => s.count !== EXPECTED_POINTS);
+      const warnEl = document.getElementById('rowWarn');
+      if (bad.length) {
+        warnEl.textContent = `提示：以下工作表行数不是 ${EXPECTED_POINTS} 点：${bad.map((b) => `${b.sheetName}(${b.count})`).join('、')}`;
+        warnEl.classList.remove('hidden');
+      } else {
+        warnEl.classList.add('hidden');
+      }
+    }
+
+    function renderInsightPanel(summaries, day = getSelectedDay()) {
+      const all = allPointsFlat().filter((p) => p.spread != null);
+      const avgSpread = mean(summaries.map((x) => x.spreadMean));
+      const riskPoint = all.length
+        ? [...all].sort((a, b) => Math.abs(b.spread) - Math.abs(a.spread))[0]
+        : null;
+      const biasText = avgSpread == null
+        ? '暂无足够价差数据'
+        : avgSpread > 0
+          ? '实时整体高于日前'
+          : avgSpread < 0
+            ? '实时整体低于日前'
+            : '实时与日前基本持平';
+      const biasDesc = avgSpread == null
+        ? '请检查日前、实时电价列是否有有效数字。'
+        : `全表平均价差 ${fmt(avgSpread)}，正值实时更贵，负值实时更便宜。`;
+      const riskDesc = riskPoint
+        ? `${riskPoint.sheetName} ${riskPoint.timeLabel}，价差 ${fmt(riskPoint.spread)}。建议优先复盘该时刻。`
+        : '暂无可识别的极端价差时刻。';
+
+      document.getElementById('insightPanel').innerHTML = `
+        <article class="insight-card">
+          <div class="label">自动结论</div>
+          <div class="headline">${biasText}</div>
+          <div class="desc">${biasDesc}</div>
+        </article>
+        <article class="insight-card">
+          <div class="label">需要关注的时刻</div>
+          <div class="headline">${riskPoint ? `${riskPoint.sheetName} ${riskPoint.timeLabel}` : '暂无异常'}</div>
+          <div class="desc">${riskDesc}</div>
+        </article>
+      `;
+    }
+
+    function renderSummaryTable(summaries) {
+      document.querySelector('#summaryTable tbody').innerHTML = summaries.map((s) => {
+        const spreadCls = s.spreadMean > 0 ? 'pos' : s.spreadMean < 0 ? 'neg' : '';
+        return `<tr>
+          <td>${s.sheetName}</td>
+          <td>${s.count}</td>
+          <td>${fmt(s.dayAheadMean)}</td>
+          <td>${fmt(s.realTimeMean)}</td>
+          <td>${fmt(s.rollingMean)}</td>
+          <td class="${spreadCls}">${fmt(s.spreadMean)}</td>
+          <td>${pct(s.spreadUpRatio)}</td>
+          <td>${fmt(s.dayAheadP10)}</td>
+          <td>${fmt(s.dayAheadP50)}</td>
+          <td>${fmt(s.dayAheadP90)}</td>
+          <td>${fmt(s.dayAheadStd)}</td>
+          <td>${s.rollingCloser}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function fillTopTable(tableId, rows, cols) {
+      document.querySelector(`#${tableId} tbody`).innerHTML = rows.length
+        ? rows.map((r) => `<tr>${cols.map((c) => {
+            const v = typeof c === 'function' ? c(r) : r[c];
+            const cls = c === 'spread' && v > 0 ? 'pos' : c === 'spread' && v < 0 ? 'neg' : '';
+            return `<td class="${cls}">${typeof v === 'number' ? fmt(v) : v}</td>`;
+          }).join('')}</tr>`).join('')
+        : '<tr><td colspan="5">无数据</td></tr>';
+    }
+
+    function renderTopTables() {
+      const all = allPointsFlat();
+      fillTopTable('topSpreadPos', topN(all, 'spread', TOP_N, true), ['sheetName', 'timeLabel', 'spread', 'dayAhead', 'realTime']);
+      fillTopTable('topSpreadNeg', topN(all, 'spread', TOP_N, false), ['sheetName', 'timeLabel', 'spread', 'dayAhead', 'realTime']);
+      fillTopTable('topPriceHigh', topN(all, 'dayAhead', TOP_N, true), ['sheetName', 'timeLabel', 'dayAhead', 'realTime']);
+      fillTopTable('topPriceLow', topN(all, 'dayAhead', TOP_N, false), ['sheetName', 'timeLabel', 'dayAhead', 'realTime']);
+    }
+
+    function getSelectedDay() {
+      return parsedDays.find((d) => d.sheetName === daySelect.value) || parsedDays[0];
+    }
+
+    function renderDayDetail(day) {
+      const dir = spreadDirection(day.points);
+      document.getElementById('daySpreadStats').innerHTML = `
+        <span>实时&gt;日前：<strong>${dir.up}</strong> 点 (${pct(dir.upRatio)})</span>
+        <span>实时&lt;日前：<strong>${dir.down}</strong> 点 (${pct(dir.downRatio)})</span>
+        <span>持平：<strong>${dir.flat}</strong> 点</span>
+        <span>|价差|均值：<strong>${fmt(dir.meanAbs)}</strong></span>
+      `;
+
+      if (charts.chartSpreadPie) {
+        charts.chartSpreadPie.dispose();
+        delete charts.chartSpreadPie;
+      }
+
+      const segs = segmentStats(day.points);
+      document.querySelector('#segmentTable tbody').innerHTML = segs.map((s) => {
+        const cls = s.spreadMean > 0 ? 'pos' : s.spreadMean < 0 ? 'neg' : '';
+        return `<tr>
+          <td>${s.name}</td>
+          <td>${s.desc}</td>
+          <td>${s.count}</td>
+          <td>${fmt(s.dayAheadMean)}</td>
+          <td>${fmt(s.realTimeMean)}</td>
+          <td class="${cls}">${fmt(s.spreadMean)}</td>
+          <td>${fmt(s.rollingMean)}</td>
+        </tr>`;
+      }).join('');
+
+      initChart('chartSegment').setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['日前均', '实时均', '价差均'], textStyle: { color: '#64748b' } },
+        grid: { left: 50, right: 20, top: 35, bottom: 30 },
+        xAxis: { type: 'category', data: segs.map((s) => s.name), axisLabel: axisStyle },
+        yAxis: { type: 'value', axisLabel: axisStyle, splitLine: gridLine },
+        series: [
+          { name: '日前均', type: 'bar', data: segs.map((s) => s.dayAheadMean) },
+          { name: '实时均', type: 'bar', data: segs.map((s) => s.realTimeMean) },
+          { name: '价差均', type: 'line', data: segs.map((s) => s.spreadMean), smooth: true }
+        ],
+        color: ['#3b82f6', '#f59e0b', '#ef4444']
+      }, true);
+    }
+
+    function renderDayCharts(day) {
+      const times = day.points.map((p) => p.timeLabel);
+      const da = day.points.map((p) => p.dayAhead);
+      const rt = day.points.map((p) => p.realTime);
+      const ro = day.points.map((p) => p.rolling);
+      const sp = day.points.map((p) => p.spread);
+
+      initChart('chartPrice').setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['日前', '实时', '滚动撮合'], textStyle: { color: '#64748b' } },
+        grid: { left: 55, right: 25, top: 45, bottom: 40 },
+        xAxis: { type: 'category', data: times, axisLabel: axisStyle },
+        yAxis: { type: 'value', name: '元/MWh', axisLabel: axisStyle, splitLine: gridLine },
+        series: [
+          { name: '日前', type: 'line', data: da, smooth: true, symbol: 'circle', symbolSize: 4 },
+          { name: '实时', type: 'line', data: rt, smooth: true, symbol: 'circle', symbolSize: 4 },
+          { name: '滚动撮合', type: 'line', data: ro, smooth: true, symbol: 'none' }
+        ],
+        color: ['#3b82f6', '#f59e0b', '#22c55e']
+      }, true);
+
+      initChart('chartSpread').setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        grid: { left: 55, right: 25, top: 35, bottom: 40 },
+        xAxis: { type: 'category', data: times, axisLabel: axisStyle },
+        yAxis: { type: 'value', name: '价差', axisLabel: axisStyle, splitLine: gridLine },
+        series: [{
+          type: 'bar',
+          data: sp.map((v) => ({
+            value: v,
+            itemStyle: { color: v > 0 ? '#ef4444' : v < 0 ? '#22c55e' : '#6b7280' }
+          }))
+        }]
+      }, true);
+    }
+
+    function buildHeatmapData(days, valueKey) {
+      const timeSet = new Map();
+      days.forEach((d) => d.points.forEach((p) => {
+        if (!timeSet.has(p.timeLabel)) timeSet.set(p.timeLabel, p.sortOrder);
+      }));
+      const times = [...timeSet.entries()].sort((a, b) => a[1] - b[1]).map((e) => e[0]);
+      const yLabels = days.map((d) => d.sheetName);
+      const data = [];
+      days.forEach((d, yi) => {
+        const map = new Map(d.points.map((p) => [p.timeLabel, p[valueKey]]));
+        times.forEach((t, xi) => {
+          const v = map.get(t);
+          if (v != null) data.push([xi, yi, v]);
+        });
+      });
+      return { times, yLabels, data };
+    }
+
+    function renderHeatmap(elId, days, valueKey, titlePrefix) {
+      const { times, yLabels, data } = buildHeatmapData(days, valueKey);
+      const vals = data.map((d) => d[2]);
+      const vmin = vals.length ? Math.min(...vals) : 0;
+      const vmax = vals.length ? Math.max(...vals) : 1;
+      const colors = valueKey === 'spread'
+        ? ['#22c55e', '#f8fafc', '#ef4444']
+        : ['#1e3a5f', '#3b82f6', '#fbbf24', '#ef4444'];
+
+      initChart(elId).setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          position: 'top',
+          formatter: (p) => `${yLabels[p.data[1]]} ${times[p.data[0]]}<br/>${titlePrefix}: ${fmt(p.data[2])}`
+        },
+        grid: { left: 80, right: 70, top: 20, bottom: 60 },
+        xAxis: { type: 'category', data: times, splitArea: { show: true }, axisLabel: { ...axisStyle, fontSize: 10 } },
+        yAxis: { type: 'category', data: yLabels, splitArea: { show: true }, axisLabel: axisStyle },
+        visualMap: {
+          min: vmin,
+          max: vmax,
+          calculable: true,
+          orient: 'vertical',
+          right: 10,
+          top: 'center',
+          inRange: { color: colors },
+          textStyle: { color: '#64748b' }
+        },
+        series: [{ type: 'heatmap', data, emphasis: { itemStyle: { shadowBlur: 8 } } }]
+      }, true);
+    }
+
+    function renderCrossDayCharts(summaries) {
+      const names = summaries.map((s) => s.sheetName);
+      initChart('chartDaily').setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['日前均价', '实时均价', '滚动均价', '平均价差', '日前波动'], textStyle: { color: '#64748b' } },
+        grid: { left: 55, right: 25, top: 45, bottom: 40 },
+        xAxis: { type: 'category', data: names, axisLabel: axisStyle },
+        yAxis: { type: 'value', axisLabel: axisStyle, splitLine: gridLine },
+        series: [
+          { name: '日前均价', type: 'bar', data: summaries.map((s) => s.dayAheadMean) },
+          { name: '实时均价', type: 'bar', data: summaries.map((s) => s.realTimeMean) },
+          { name: '滚动均价', type: 'bar', data: summaries.map((s) => s.rollingMean) },
+          { name: '平均价差', type: 'line', data: summaries.map((s) => s.spreadMean), smooth: true },
+          { name: '日前波动', type: 'line', data: summaries.map((s) => s.dayAheadStd), smooth: true, lineStyle: { type: 'dashed' } }
+        ],
+        color: ['#3b82f6', '#f59e0b', '#22c55e', '#ef4444', '#a78bfa']
+      }, true);
+
+      const hourLabels = CROSS_HOURS.map((h) => `${String(h).padStart(2, '0')}:00`);
+      const dayNames = parsedDays.map((d) => d.sheetName);
+      const seriesDa = CROSS_HOURS.map((h, i) => ({
+        name: hourLabels[i] + ' 日前',
+        type: 'line',
+        data: parsedDays.map((d) => {
+          const label = findTimeLabel(d.points, h);
+          const p = d.points.find((x) => x.timeLabel === label) || d.points.find((x) => hourOf(x) === h);
+          return p?.dayAhead ?? null;
+        })
+      }));
+      const seriesRt = CROSS_HOURS.map((h, i) => ({
+        name: hourLabels[i] + ' 实时',
+        type: 'line',
+        lineStyle: { type: 'dashed' },
+        data: parsedDays.map((d) => {
+          const label = findTimeLabel(d.points, h);
+          const p = d.points.find((x) => x.timeLabel === label) || d.points.find((x) => hourOf(x) === h);
+          return p?.realTime ?? null;
+        })
+      }));
+
+      initChart('chartCrossHour').setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        legend: { type: 'scroll', textStyle: { color: '#64748b' } },
+        grid: { left: 55, right: 25, top: 55, bottom: 40 },
+        xAxis: { type: 'category', data: dayNames, axisLabel: axisStyle },
+        yAxis: { type: 'value', name: '元/MWh', axisLabel: axisStyle, splitLine: gridLine },
+        series: [...seriesDa, ...seriesRt]
+      }, true);
+
+      renderHeatmap('chartHeatmap', parsedDays, 'dayAhead', '日前');
+      renderHeatmap('chartHeatmapSpread', parsedDays, 'spread', '价差');
+    }
+
+    function renderAll() {
+      lastSummaries = parsedDays.map(summarizeDay);
+      renderOverview(lastSummaries);
+      renderInsightPanel(lastSummaries);
+      renderSummaryTable(lastSummaries);
+      renderTopTables();
+      const day = getSelectedDay();
+      renderDayDetail(day);
+      renderDayCharts(day);
+      renderCrossDayCharts(lastSummaries);
+    }
+
+    function setupLoadedView(selectedSheet = parsedDays[0]?.sheetName) {
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+      importGroup.classList.add('hidden');
+      reimportBtn.classList.remove('hidden');
+      analysisControls.classList.remove('hidden');
+      fileStatus.classList.remove('hidden');
+
+      const totalRows = parsedDays.reduce((sum, d) => sum + d.points.length, 0);
+      fileStatus.textContent = `当前文件：${currentFileName || '缓存数据'} · 工作表数 ${parsedDays.length} · 总数据行 ${totalRows}`;
+      const dayOptions = parsedDays.map((d) => {
+        const label = d.calendarDate && /^\d{4}-\d{2}-\d{2}$/.test(d.calendarDate)
+          ? `${d.sheetName}（${d.calendarDate}）`
+          : d.sheetName;
+        return `<option value="${d.sheetName}">${label}</option>`;
+      }).join('');
+      daySelect.innerHTML = dayOptions;
+      cardDaySelects.forEach((select) => { select.innerHTML = dayOptions; });
+      daySelect.value = parsedDays.some((d) => d.sheetName === selectedSheet)
+        ? selectedSheet
+        : parsedDays[0].sheetName;
+      cardDaySelects.forEach((select) => { select.value = daySelect.value; });
+      renderAll();
+    }
+
+    function saveCache() {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          fileName: currentFileName,
+          selectedSheet: daySelect.value,
+          parsedDays,
+          savedAt: Date.now()
+        }));
+      } catch (err) {
+        console.warn('缓存失败：', err);
+      }
+    }
+
+    function restoreCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return;
+        const cached = JSON.parse(raw);
+        if (!cached?.parsedDays?.length) return;
+        parsedDays = cached.parsedDays;
+        currentFileName = cached.fileName || '缓存数据';
+        setupLoadedView(cached.selectedSheet);
+        showError('');
+      } catch (err) {
+        console.warn('读取缓存失败：', err);
+      }
+    }
+
+    function onFileLoaded(wb) {
+      const names = sortSheetNames(wb.SheetNames);
+      parsedDays = [];
+      const errors = [];
+
+      for (const name of names) {
+        const result = parseSheet(wb.Sheets[name], name);
+        if (!result) continue;
+        if (result.error) { errors.push(result.error); continue; }
+        if (result.points.length) parsedDays.push(result);
+      }
+
+      if (!parsedDays.length) {
+        showError(errors.length ? errors.join('；') : '未解析到有效数据');
+        return;
+      }
+      showError(errors.length ? '部分工作表跳过：' + errors.join('；') : '');
+      setupLoadedView(parsedDays[0].sheetName);
+      saveCache();
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      currentFileName = file.name;
+      showError('');
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          onFileLoaded(XLSX.read(ev.target.result, { type: 'array', cellDates: false }));
+        } catch (err) {
+          showError('文件解析失败：' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    reimportBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    function applySelectedDay(sheetName) {
+      if (!parsedDays.length) return;
+      daySelect.value = sheetName;
+      cardDaySelects.forEach((select) => { select.value = sheetName; });
+      const day = getSelectedDay();
+      renderInsightPanel(lastSummaries, day);
+      renderDayDetail(day);
+      renderDayCharts(day);
+      saveCache();
+    }
+
+    daySelect.addEventListener('change', () => {
+      applySelectedDay(daySelect.value);
+    });
+
+    cardDaySelects.forEach((select) => {
+      select.addEventListener('change', () => {
+        applySelectedDay(select.value);
+      });
+    });
+
+    detailsPanel.addEventListener('toggle', () => {
+      if (detailsPanel.open) {
+        requestAnimationFrame(() => Object.values(charts).forEach((c) => c?.resize()));
+      }
+    });
+    window.addEventListener('resize', () => Object.values(charts).forEach((c) => c?.resize()));
+    restoreCache();
+  </script>
+</body>
+</html>
