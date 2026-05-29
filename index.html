@@ -187,7 +187,7 @@
     }
     .stat-card .label { display: flex; align-items: center; gap: 0.42rem; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
     .stat-card .label .icon { font-size: 1.75em; }
-    .stat-card .value { font-size: 1.45rem; font-weight: 750; margin-top: 0.32rem; }
+    .stat-card .value { font-size: 1.45rem; font-weight: 750; margin-top: 0.28rem; }
     section.block {
       grid-column: span 6;
       background: var(--panel);
@@ -200,6 +200,15 @@
     section.block.wide { grid-column: span 12; }
     section.block h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.35rem; letter-spacing: 0.02em; }
     section.block .hint { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .chart-guide code,
+    section.block .hint code {
+      font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace;
+      font-size: 0.74rem;
+      color: var(--text);
+      background: rgba(37, 99, 235, 0.08);
+      padding: 0.08rem 0.32rem;
+      border-radius: 5px;
+    }
     .block-title {
       display: flex;
       align-items: center;
@@ -319,6 +328,66 @@
       color: var(--muted);
       font-size: 0.78rem;
       margin: -0.15rem 0 0.65rem;
+    }
+    .formula-mini {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      line-height: 1.35;
+      font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace;
+      opacity: 0.92;
+    }
+    .formula-panel {
+      grid-column: 1 / -1;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .formula-panel > summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1.1rem;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .formula-panel > summary::-webkit-details-marker { display: none; }
+    .formula-panel > summary::after {
+      content: "展开";
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+    .formula-panel[open] > summary::after { content: "收起"; }
+    .formula-content {
+      padding: 0 1.1rem 1rem;
+      display: grid;
+      gap: 0.85rem;
+    }
+    .formula-group h3 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: var(--text);
+    }
+    .formula-list {
+      list-style: none;
+      display: grid;
+      gap: 0.35rem;
+    }
+    .formula-list li {
+      font-size: 0.76rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .formula-list code {
+      font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace;
+      font-size: 0.74rem;
+      color: var(--text);
+      background: rgba(37, 99, 235, 0.08);
+      padding: 0.1rem 0.35rem;
+      border-radius: 6px;
     }
     .section-label {
       grid-column: 1 / -1;
@@ -635,12 +704,59 @@
         </div>
         <p id="rowWarn" class="warn hidden"></p>
 
+        <details class="formula-panel details-panel">
+          <summary>计算公式说明</summary>
+          <div class="formula-content">
+            <div class="formula-group">
+              <h3>基础（逐时刻）</h3>
+              <ul class="formula-list">
+                <li><code>价差ₜ = 实时ₜ − 日前ₜ</code>（仅当两点均有数值时计算）</li>
+                <li><code>日前均 = AVG(日前ₜ)</code>，<code>实时均 = AVG(实时ₜ)</code>，<code>滚动均 = AVG(滚动ₜ)</code>（仅统计非空）</li>
+                <li><code>价差均 = AVG(价差ₜ)</code>（仅统计价差非空时刻）</li>
+                <li><code>实时&gt;日前占比 = COUNT(价差ₜ&gt;0) ÷ COUNT(价差ₜ非空)</code></li>
+              </ul>
+            </div>
+            <div class="formula-group">
+              <h3>全表顶部指标（跨工作表）</h3>
+              <ul class="formula-list">
+                <li><code>全表日前均价 = AVG(各表日前均)</code></li>
+                <li><code>全表实时均价 = AVG(各表实时均)</code></li>
+                <li><code>全表平均价差 = AVG(各表价差均)</code></li>
+                <li><code>平均实时&gt;日前占比 = AVG(各表实时&gt;日前占比)</code>（按「天」等权，非按全部时刻点数加权）</li>
+              </ul>
+            </div>
+            <div class="formula-group">
+              <h3>逐日汇总 / 详情表</h3>
+              <ul class="formula-list">
+                <li><code>日前P10/P50/P90</code>：对当日日前电价做线性插值分位数（类似 Excel PERCENTILE.INC）</li>
+                <li><code>日前波动 = STDEV.S(日前ₜ)</code>（样本标准差，除以 n−1）</li>
+                <li><code>滚动贴近</code>：比较 <code>AVG(|滚动−日前|)</code> 与 <code>AVG(|滚动−实时|)</code>，差值 &gt; 0.01 元/MWh 时判为更贴近一方，否则为「相当」</li>
+                <li>极端时刻 Top10：按价差或日前价排序取前 10（全表所有时刻）</li>
+              </ul>
+            </div>
+            <div class="formula-group">
+              <h3>峰 / 平 / 谷（按时刻整点小时划分）</h3>
+              <ul class="formula-list">
+                <li>谷段：0:00–7:59；峰段：9:00–11:59、17:00–21:59；平段：其余时刻</li>
+                <li>各段均价 = 该段内有效点的算术平均（与 Excel 段内 AVERAGE 一致，前提是时刻划分一致）</li>
+              </ul>
+            </div>
+            <div class="formula-group">
+              <h3>说明</h3>
+              <ul class="formula-list">
+                <li>数值内部保留 6 位小数计算，页面展示 4 位小数。</li>
+                <li>某工作表行数不是 24 或存在重复时刻时，仍会参与统计，顶部会提示异常工作表。</li>
+              </ul>
+            </div>
+          </div>
+        </details>
+
         <section class="block hero-chart">
           <div class="block-title">
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-line"></use></svg>分时电价曲线（日前 / 实时 / 滚动撮合）</h2>
             <select class="card-day-select" aria-label="选择当前日期"></select>
           </div>
-          <p class="chart-guide">三条线越分开，说明日前、实时、滚动撮合价格差异越明显。</p>
+          <p class="chart-guide">纵轴为电价（元/MWh）。<code>价差ₜ = 实时ₜ − 日前ₜ</code>。三条线越分开，差异越明显。</p>
           <div id="chartPrice" class="chart"></div>
         </section>
 
@@ -649,7 +765,7 @@
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-spread"></use></svg>分时价差（实时 − 日前）</h2>
             <select class="card-day-select" aria-label="选择当前日期"></select>
           </div>
-          <p class="chart-guide">红色表示实时比日前贵，绿色表示实时比日前便宜，柱子越高偏差越大。</p>
+          <p class="chart-guide"><code>价差ₜ = 实时ₜ − 日前ₜ</code>；红色为正（实时更贵），绿色为负，柱子越高偏差越大。</p>
           <div id="chartSpread" class="chart"></div>
         </section>
 
@@ -658,7 +774,7 @@
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>分时段汇总（峰 / 平 / 谷）</h2>
             <select class="card-day-select" aria-label="选择当前日期"></select>
           </div>
-          <p class="hint">价差方向见下方文字；逐点价差见「分时价差」图；跨日见价差热力图</p>
+          <p class="hint">段内 <code>日前均/实时均/价差均/滚动均</code> 均为该段非空点的算术平均；占比见下方文字。</p>
           <div class="day-stats" id="daySpreadStats"></div>
           <div id="chartSegment" class="chart short"></div>
           <div class="table-wrap" style="margin-top:0.75rem;">
@@ -683,7 +799,7 @@
           
           <section class="block">
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-chart"></use></svg>跨日均价与波动对比</h2>
-            <p class="chart-guide">柱子看每天价格水平，折线看平均价差和日前波动。</p>
+            <p class="chart-guide">柱：各表 <code>日前均/实时均/滚动均</code>；线：<code>价差均</code>、<code>STDEV.S(日前)</code>。</p>
             <div id="chartDaily" class="chart short"></div>
           </section>
 
@@ -699,7 +815,7 @@
           <div class="details-content">
             <section class="block wide">
               <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-table"></use></svg>逐日汇总（含分位数与波动）</h2>
-              <p class="hint">P10/P50/P90 为日前电价分位数；波动率 = 日前标准差；滚动贴近 = 滚动撮合均价更接近日前或实时（按平均绝对偏差）</p>
+              <p class="hint">见上方「计算公式说明」。P10/P50/P90 = 日前分位数；日前波动 = <code>STDEV.S</code>；滚动贴近见平均绝对偏差规则。</p>
               <div class="table-wrap">
                 <table id="summaryTable" class="detail-table">
                   <thead>
@@ -725,7 +841,7 @@
 
             <section class="block wide">
               <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert"></use></svg>极端时刻 Top 10（全表）</h2>
-              <p class="hint">跨所有工作表汇总，便于快速定位风险时段</p>
+              <p class="hint">全表按价差或日前价排序取 Top10；价差 = <code>实时 − 日前</code>。</p>
               <div class="grid-2">
                 <div class="table-wrap">
                   <table id="topSpreadPos" class="detail-table"><thead><tr><th>日期</th><th>时刻</th><th>价差</th><th>日前</th><th>实时</th></tr></thead><tbody></tbody></table>
@@ -746,7 +862,7 @@
 
             <section class="block wide">
               <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>典型时刻跨日对比（10 / 14 / 18 / 20 点）</h2>
-              <p class="hint">若表中时刻标签不完全一致，将匹配最接近的整点</p>
+              <p class="hint">取 10/14/18/20 点整点行；标签不一致时匹配同小时第一条记录。</p>
               <div id="chartCrossHour" class="chart"></div>
             </section>
 
@@ -1198,10 +1314,10 @@
       const avgSpread = mean(summaries.map((x) => x.spreadMean));
       const avgUp = mean(summaries.map((x) => x.spreadUpRatio));
       document.getElementById('overview').innerHTML = `
-        <div class="stat-card"><div class="label">${icon('calendar')}全表日前均价</div><div class="value">${fmt(mean(summaries.map((x) => x.dayAheadMean)))}</div></div>
-        <div class="stat-card"><div class="label">${icon('chart')}全表实时均价</div><div class="value">${fmt(mean(summaries.map((x) => x.realTimeMean)))}</div></div>
-        <div class="stat-card"><div class="label">${icon('spread')}全表平均价差</div><div class="value">${fmt(avgSpread)}</div></div>
-        <div class="stat-card"><div class="label">${icon('target')}平均实时&gt;日前占比</div><div class="value">${pct(avgUp)}</div></div>
+        <div class="stat-card"><div class="label">${icon('calendar')}全表日前均价</div><div class="formula-mini">AVG(各表日前均)</div><div class="value">${fmt(mean(summaries.map((x) => x.dayAheadMean)))}</div></div>
+        <div class="stat-card"><div class="label">${icon('chart')}全表实时均价</div><div class="formula-mini">AVG(各表实时均)</div><div class="value">${fmt(mean(summaries.map((x) => x.realTimeMean)))}</div></div>
+        <div class="stat-card"><div class="label">${icon('spread')}全表平均价差</div><div class="formula-mini">AVG(各表价差均)</div><div class="value">${fmt(avgSpread)}</div></div>
+        <div class="stat-card"><div class="label">${icon('target')}平均实时&gt;日前占比</div><div class="formula-mini">AVG(各表占比)</div><div class="value">${pct(avgUp)}</div></div>
       `;
 
       const bad = summaries.filter((s) => s.count !== EXPECTED_POINTS);
@@ -1237,11 +1353,13 @@
       document.getElementById('insightPanel').innerHTML = `
         <article class="insight-card">
           <div class="label">${icon('insight')}自动结论</div>
+          <div class="formula-mini">依据 AVG(各表价差均)</div>
           <div class="headline">${biasText}</div>
           <div class="desc">${biasDesc}</div>
         </article>
         <article class="insight-card">
           <div class="label">${icon('alert')}需要关注的时刻</div>
+          <div class="formula-mini">MAX(|价差ₜ|) 全表</div>
           <div class="headline">${riskPoint ? `${riskPoint.sheetName} ${riskPoint.timeLabel}` : '暂无异常'}</div>
           <div class="desc">${riskDesc}</div>
         </article>
@@ -1621,6 +1739,11 @@
       });
     });
 
+    document.querySelector('.formula-panel')?.addEventListener('toggle', (e) => {
+      if (e.currentTarget.open) {
+        requestAnimationFrame(() => Object.values(charts).forEach((c) => c?.resize()));
+      }
+    });
     detailsPanel.addEventListener('toggle', () => {
       if (detailsPanel.open) {
         requestAnimationFrame(() => Object.values(charts).forEach((c) => c?.resize()));
