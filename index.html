@@ -4,45 +4,81 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>电价 Excel 分析</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <style>
     :root {
-      --bg: #07111f;
-      --panel: rgba(15, 27, 46, 0.86);
-      --panel-strong: rgba(20, 37, 62, 0.96);
-      --border: rgba(109, 131, 164, 0.22);
-      --text: #edf4ff;
-      --muted: #8ea1bd;
-      --accent: #4f8cff;
-      --accent-2: #22d3ee;
-      --green: #22c55e;
-      --red: #ef4444;
-      --gold: #fbbf24;
-      --shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+      --bg-base: #e8edf4;
+      --bg-warm: #f6f8fb;
+      --panel: rgba(255, 255, 255, 0.72);
+      --panel-strong: rgba(255, 255, 255, 0.9);
+      --panel-muted: rgba(248, 250, 252, 0.82);
+      --border: rgba(71, 85, 105, 0.14);
+      --border-strong: rgba(71, 85, 105, 0.22);
+      --text: #0f172a;
+      --muted: #5b6778;
+      --accent: #0369a1;
+      --accent-2: #0ea5e9;
+      --accent-deep: #0c4a6e;
+      --power-amber: #c27803;
+      --power-teal: #0f766e;
+      --green: #047857;
+      --red: #b91c1c;
+      --gold: #a16207;
+      --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
+      --shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+      --shadow-lg: 0 28px 64px rgba(15, 23, 42, 0.14);
+      --radius-sm: 14px;
+      --radius: 20px;
+      --radius-lg: 24px;
+      --font-display: "Outfit", "Noto Sans SC", sans-serif;
+      --font-body: "Noto Sans SC", "Segoe UI", sans-serif;
+      --font-mono: "IBM Plex Mono", Consolas, "Cascadia Mono", monospace;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-family: var(--font-body);
       background:
-        radial-gradient(circle at 12% 8%, rgba(79, 140, 255, 0.18), transparent 28rem),
-        radial-gradient(circle at 86% 10%, rgba(34, 211, 238, 0.12), transparent 24rem),
-        linear-gradient(135deg, #07111f 0%, #09172a 46%, #06101d 100%);
+        radial-gradient(ellipse 80% 50% at 8% -10%, rgba(14, 165, 233, 0.22), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 92% 0%, rgba(192, 120, 3, 0.12), transparent 50%),
+        radial-gradient(circle at 50% 100%, rgba(15, 118, 110, 0.08), transparent 40%),
+        linear-gradient(168deg, var(--bg-warm) 0%, var(--bg-base) 52%, #e2e8f0 100%);
       color: var(--text);
       min-height: 100vh;
-      line-height: 1.5;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
     }
+
     body::before {
       content: "";
       position: fixed;
       inset: 0;
       pointer-events: none;
+      z-index: 0;
       background-image:
-        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-      background-size: 42px 42px;
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 72%);
+        linear-gradient(rgba(3, 105, 161, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(3, 105, 161, 0.045) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 78%);
     }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.35;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    }
+
     header {
       position: sticky;
       top: 0;
@@ -51,19 +87,47 @@
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
-      padding: 1.35rem 2rem 0.8rem;
+      padding: 1.15rem 2rem 1rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(7, 17, 31, 0.86);
-      backdrop-filter: blur(16px);
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(20px) saturate(1.2);
+      -webkit-backdrop-filter: blur(20px) saturate(1.2);
+      box-shadow: var(--shadow-sm);
     }
-    header h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: 0.04em; }
-    header p { color: var(--muted); font-size: 0.875rem; margin-top: 0.35rem; }
+
+    header::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 5%, var(--accent) 35%, var(--power-amber) 65%, transparent 95%);
+      opacity: 0.55;
+    }
+
+    header h1 {
+      font-family: var(--font-display);
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-top: 0.38rem;
+      letter-spacing: 0.01em;
+    }
+
     .svg-sprite {
       position: absolute;
       width: 0;
       height: 0;
       overflow: hidden;
     }
+
     .icon {
       width: 1.18em;
       height: 1.18em;
@@ -77,26 +141,29 @@
       stroke-linejoin: round;
       vertical-align: -0.12em;
     }
+
     .icon-label {
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
     }
+
     .title-line {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.55rem;
     }
-    .title-line .icon {
-      font-size: 1.36em;
-    }
+
+    .title-line .icon { font-size: 1.32em; }
+
     .toolbar {
       display: flex;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 0.85rem;
       align-items: center;
       justify-content: flex-end;
     }
+
     .file-input-hidden {
       position: absolute;
       width: 1px;
@@ -104,111 +171,260 @@
       opacity: 0;
       pointer-events: none;
     }
+
     .toolbar-group {
       display: inline-flex;
       align-items: center;
       gap: 0.65rem;
-      padding: 0.45rem;
-      background: rgba(11, 24, 43, 0.78);
+      padding: 0.42rem 0.5rem;
+      background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 999px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
     }
+
     label.select-label { font-size: 0.78rem; color: var(--muted); margin-left: 0.3rem; }
+
     select, .btn {
-      background: rgba(17, 32, 54, 0.95);
+      background: var(--panel-strong);
       color: var(--text);
       border: 1px solid var(--border);
-      padding: 0.56rem 0.92rem;
+      padding: 0.56rem 0.95rem;
       border-radius: 999px;
+      font-family: var(--font-body);
       font-size: 0.875rem;
+      font-weight: 500;
       cursor: pointer;
+      transition: border-color 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out), transform 0.22s var(--ease-out), background 0.22s var(--ease-out);
     }
+
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.45rem;
     }
-    .btn .icon { font-size: 1.12em; }
+
+    .btn .icon { font-size: 1.1em; }
     select { min-width: 150px; }
+
     .btn.primary {
-      background: linear-gradient(135deg, var(--accent), #2563eb);
-      border-color: rgba(147, 197, 253, 0.45);
-      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent-deep) 0%, var(--accent) 48%, var(--accent-2) 100%);
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 10px 28px rgba(3, 105, 161, 0.28);
     }
-    .btn:hover { border-color: var(--accent-2); transform: translateY(-1px); }
-    main { position: relative; z-index: 1; padding: 1.25rem 2rem 2rem; width: 100%; }
+
+    .btn:hover {
+      border-color: rgba(14, 165, 233, 0.45);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+    }
+
+    .btn.primary:hover {
+      box-shadow: 0 14px 32px rgba(3, 105, 161, 0.34);
+    }
+
+    .btn:active { transform: translateY(0); }
+
+    main {
+      position: relative;
+      z-index: 1;
+      padding: 1.35rem 2rem 2.25rem;
+      width: 100%;
+    }
+
     .empty {
       display: grid;
       place-items: center;
       min-height: calc(100vh - 130px);
       color: var(--muted);
     }
+
     .empty-card {
-      width: min(720px, 92vw);
-      padding: 2.4rem;
+      position: relative;
+      width: min(680px, 92vw);
+      padding: 2.75rem 2.4rem;
       text-align: center;
-      background: linear-gradient(180deg, rgba(20, 37, 62, 0.9), rgba(9, 23, 42, 0.9));
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
+      background: linear-gradient(165deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.68) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      overflow: hidden;
     }
-    .empty-title { color: var(--text); font-size: 1.35rem; font-weight: 700; }
-    .empty-desc { margin: 0.65rem auto 1.2rem; max-width: 520px; font-size: 0.9rem; }
+
+    .empty-orbit {
+      position: absolute;
+      inset: -40% auto auto 50%;
+      width: 320px;
+      height: 320px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.18) 0%, transparent 68%);
+      pointer-events: none;
+    }
+
+    .empty-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(14,165,233,0.35), rgba(192,120,3,0.2), rgba(15,118,110,0.25));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .empty-title {
+      position: relative;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 1.42rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .empty-desc {
+      position: relative;
+      margin: 0.75rem auto 1.45rem;
+      max-width: 480px;
+      font-size: 0.9rem;
+      line-height: 1.65;
+    }
+
     #content {
       display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 1rem;
       align-items: start;
     }
+
     .overview {
       grid-column: 1 / -1;
       display: grid;
       grid-template-columns: repeat(6, minmax(130px, 1fr));
       gap: 1rem;
     }
+
     .stat-card {
       position: relative;
       overflow: hidden;
-      background: linear-gradient(180deg, rgba(22, 43, 74, 0.92), rgba(12, 26, 47, 0.92));
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 1rem 1.1rem;
-      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+      background: linear-gradient(165deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.62) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      border-radius: var(--radius-sm);
+      padding: 1.05rem 1.15rem 1rem;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: transform 0.28s var(--ease-out), box-shadow 0.28s var(--ease-out), border-color 0.28s var(--ease-out);
     }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+      background: var(--accent);
+    }
+
+    .stat-card:nth-child(1)::before { background: linear-gradient(180deg, #0369a1, #0ea5e9); }
+    .stat-card:nth-child(2)::before { background: linear-gradient(180deg, #0f766e, #14b8a6); }
+    .stat-card:nth-child(3)::before { background: linear-gradient(180deg, #c27803, #f59e0b); }
+    .stat-card:nth-child(4)::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+
     .stat-card::after {
       content: "";
       position: absolute;
       inset: auto 0 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
-      opacity: 0.7;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(3, 105, 161, 0.25), transparent);
     }
-    .stat-card .label { display: flex; align-items: center; gap: 0.42rem; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; }
-    .stat-card .label .icon { font-size: 1.75em; }
-    .stat-card .value { font-size: 1.45rem; font-weight: 750; margin-top: 0.28rem; }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+      border-color: rgba(14, 165, 233, 0.28);
+    }
+
+    .stat-card .label {
+      display: flex;
+      align-items: center;
+      gap: 0.42rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .stat-card .label .icon { font-size: 1.65em; opacity: 0.92; }
+
+    .stat-card .value {
+      font-family: var(--font-display);
+      font-size: 1.52rem;
+      font-weight: 800;
+      margin-top: 0.32rem;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-deep);
+    }
+
     section.block {
       grid-column: span 6;
       background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      border-radius: var(--radius);
+      padding: 1.05rem 1.1rem;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      transition: box-shadow 0.28s var(--ease-out), border-color 0.28s var(--ease-out);
+    }
+
+    section.block:hover {
       box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
+      border-color: rgba(14, 165, 233, 0.22);
     }
+
     section.block.wide { grid-column: span 12; }
-    section.block h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.35rem; letter-spacing: 0.02em; }
-    section.block .hint { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
-    .chart-guide code,
-    section.block .hint code {
-      font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace;
-      font-size: 0.74rem;
-      color: var(--text);
-      background: rgba(37, 99, 235, 0.08);
-      padding: 0.08rem 0.32rem;
-      border-radius: 5px;
+
+    section.block h2 {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      letter-spacing: 0.015em;
     }
+
+    section.block .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .chart-guide code,
+    section.block .hint code,
+    .formula-list code {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--accent-deep);
+      background: rgba(3, 105, 161, 0.07);
+      padding: 0.1rem 0.36rem;
+      border-radius: 6px;
+      border: 1px solid rgba(3, 105, 161, 0.08);
+    }
+
     .block-title {
       display: flex;
       align-items: center;
@@ -216,75 +432,313 @@
       gap: 0.75rem;
       margin-bottom: 0.35rem;
     }
+
     .block-title h2 { margin-bottom: 0; }
-    section.block h2 .icon { font-size: 1.26em; }
-    .card-day-select {
-      min-width: 128px;
-      padding: 0.38rem 0.65rem;
-      font-size: 0.78rem;
+    section.block h2 .icon { font-size: 1.22em; color: var(--accent); }
+
+    .day-picker {
+      position: relative;
+      display: inline-flex;
+      flex-shrink: 0;
+      width: min(100%, 220px);
+      min-width: 156px;
+      z-index: 2;
+    }
+
+    .day-picker.is-open { z-index: 30; }
+
+    .day-picker-trigger {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      margin: 0;
+      padding: 0.5rem 2.1rem 0.5rem 0.72rem;
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--accent-deep);
+      text-align: left;
+      line-height: 1.35;
+      background: linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(236, 246, 255, 0.94) 100%);
+      border: 1px solid rgba(3, 105, 161, 0.22);
+      border-radius: 14px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 8px 22px rgba(3, 105, 161, 0.1);
+      cursor: pointer;
+      transition: border-color 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out), background 0.22s var(--ease-out);
+    }
+
+    .day-picker-trigger:hover {
+      border-color: rgba(14, 165, 233, 0.45);
+      background: linear-gradient(165deg, #ffffff 0%, rgba(224, 242, 254, 0.98) 100%);
+      box-shadow:
+        inset 0 1px 0 #fff,
+        0 10px 26px rgba(3, 105, 161, 0.14);
+    }
+
+    .day-picker-trigger:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow:
+        inset 0 1px 0 #fff,
+        0 0 0 3px rgba(14, 165, 233, 0.2),
+        0 10px 26px rgba(3, 105, 161, 0.12);
+    }
+
+    .day-picker.is-open .day-picker-trigger {
+      border-color: var(--accent);
+      box-shadow:
+        inset 0 1px 0 #fff,
+        0 0 0 3px rgba(14, 165, 233, 0.16),
+        0 10px 26px rgba(3, 105, 161, 0.12);
+    }
+
+    .day-picker-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.65rem;
+      height: 1.65rem;
+      flex-shrink: 0;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(3, 105, 161, 0.12), rgba(14, 165, 233, 0.08));
+      color: var(--accent);
+    }
+
+    .day-picker-icon .icon {
+      width: 0.95rem;
+      height: 0.95rem;
+      stroke-width: 1.8;
+    }
+
+    .day-picker-value {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .day-picker-chevron {
+      position: absolute;
+      right: 0.85rem;
+      top: 50%;
+      width: 0.5rem;
+      height: 0.5rem;
+      margin-top: -0.32rem;
+      border-right: 2px solid var(--accent);
+      border-bottom: 2px solid var(--accent);
+      transform: rotate(45deg);
+      opacity: 0.88;
+      pointer-events: none;
+      transition: transform 0.12s var(--ease-out);
+    }
+
+    .day-picker.is-open .day-picker-chevron {
+      transform: rotate(225deg);
+    }
+
+    .day-picker-panel {
+      position: absolute;
+      top: calc(100% + 0.45rem);
+      right: 0;
+      left: auto;
+      width: max(100%, 240px);
+      max-height: min(320px, 52vh);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.96) 100%);
+      border: 1px solid rgba(3, 105, 161, 0.16);
+      border-radius: 16px;
+      box-shadow:
+        0 4px 6px rgba(15, 23, 42, 0.04),
+        0 22px 48px rgba(3, 105, 161, 0.16);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .day-picker-panel-head {
+      flex-shrink: 0;
+      padding: 0.65rem 0.9rem 0.45rem;
+      font-family: var(--font-display);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(71, 85, 105, 0.1);
+    }
+
+    .day-picker-list {
+      list-style: none;
+      margin: 0;
+      padding: 0.4rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .day-picker-list::-webkit-scrollbar { width: 6px; }
+    .day-picker-list::-webkit-scrollbar-thumb {
+      background: rgba(3, 105, 161, 0.22);
       border-radius: 999px;
     }
+
+    .day-picker-option {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin: 0;
+      padding: 0.58rem 0.72rem;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text);
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.18s var(--ease-out), border-color 0.18s var(--ease-out), color 0.18s var(--ease-out);
+    }
+
+    .day-picker-option:hover {
+      background: rgba(14, 165, 233, 0.08);
+      border-color: rgba(14, 165, 233, 0.12);
+    }
+
+    .day-picker-option.is-active {
+      color: var(--accent-deep);
+      font-weight: 700;
+      background: linear-gradient(135deg, rgba(3, 105, 161, 0.1), rgba(14, 165, 233, 0.06));
+      border-color: rgba(3, 105, 161, 0.18);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .day-picker-option-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .chart { width: 100%; height: 390px; }
     .chart.tall { height: 430px; }
     .chart.short { height: 320px; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
     @media (max-width: 1200px) {
       header { align-items: flex-start; flex-direction: column; }
       .toolbar { justify-content: flex-start; }
       .overview { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
       section.block { grid-column: span 12; }
     }
+
     @media (max-width: 900px) {
       main { padding: 1rem; }
       .grid-2 { grid-template-columns: 1fr; }
       .overview { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
     }
+
     .table-wrap {
       overflow-x: auto;
-      border: 1px solid rgba(109, 131, 164, 0.12);
-      border-radius: 14px;
-      background: rgba(5, 12, 24, 0.22);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.52);
     }
+
     table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .detail-table {
-      font-size: 0.9rem;
-    }
+
+    .detail-table { font-size: 0.88rem; }
+
     .detail-table th,
-    .detail-table td {
-      padding: 0.68rem 0.78rem;
+    .detail-table td { padding: 0.7rem 0.82rem; }
+
+    th, td {
+      padding: 0.58rem 0.72rem;
+      text-align: right;
+      border-bottom: 1px solid rgba(71, 85, 105, 0.1);
     }
-    th, td { padding: 0.58rem 0.7rem; text-align: right; border-bottom: 1px solid rgba(109, 131, 164, 0.16); }
+
     th:first-child, td:first-child { text-align: left; }
-    th { color: #b8c7dc; font-weight: 600; background: rgba(16, 34, 58, 0.88); position: sticky; top: 0; }
-    tr:hover td { background: rgba(79, 140, 255, 0.08); }
-    .pos { color: var(--red); }
-    .neg { color: var(--green); }
-    .hidden { display: none !important; }
-    .err { grid-column: 1 / -1; color: var(--red); font-size: 0.875rem; padding: 0.8rem 2rem 0; }
-    .warn { grid-column: 1 / -1; color: var(--gold); font-size: 0.8rem; margin: -0.2rem 0 0.2rem; }
-    .day-stats { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
-    .day-stats span {
-      font-size: 0.8rem;
-      color: var(--muted);
-      background: rgba(6, 14, 27, 0.45);
-      border: 1px solid rgba(109, 131, 164, 0.16);
-      padding: 0.45rem 0.72rem;
-      border-radius: 999px;
+
+    th {
+      color: var(--accent-deep);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.76rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: rgba(241, 245, 249, 0.95);
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
-    .day-stats strong { color: var(--text); }
+
+    tbody tr:nth-child(even) td { background: rgba(248, 250, 252, 0.65); }
+    tr:hover td { background: rgba(14, 165, 233, 0.07); }
+
+    .pos { color: var(--red); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .neg { color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .hidden { display: none !important; }
+
+    .err {
+      grid-column: 1 / -1;
+      color: var(--red);
+      font-size: 0.875rem;
+      padding: 0.8rem 2rem 0;
+      font-weight: 500;
+    }
+
+    .warn {
+      grid-column: 1 / -1;
+      color: var(--gold);
+      font-size: 0.82rem;
+      margin: -0.15rem 0 0.25rem;
+      padding: 0.55rem 0.85rem;
+      background: rgba(192, 120, 3, 0.08);
+      border: 1px solid rgba(192, 120, 3, 0.18);
+      border-radius: var(--radius-sm);
+    }
+
+    .day-stats { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-bottom: 0.8rem; }
+
+    .day-stats span {
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--border);
+      padding: 0.42rem 0.75rem;
+      border-radius: 999px;
+      transition: border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
+    }
+
+    .day-stats span:hover {
+      border-color: rgba(14, 165, 233, 0.3);
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .day-stats strong { color: var(--text); font-weight: 700; }
+
     .file-status {
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      max-width: 420px;
     }
+
     .insight-panel {
       grid-column: 1 / -1;
       display: grid;
       grid-template-columns: 1.15fr 1fr;
       gap: 1rem;
     }
+
     .top-summary-row {
       grid-column: 1 / -1;
       display: grid;
@@ -292,220 +746,228 @@
       gap: 1rem;
       align-items: stretch;
     }
+
     .top-summary-row .overview,
-    .top-summary-row .insight-panel {
-      display: contents;
-    }
+    .top-summary-row .insight-panel { display: contents; }
+
     .insight-card {
-      padding: 1rem 1.1rem;
-      border-radius: 18px;
-      background: var(--panel);
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      box-shadow: var(--shadow);
+      position: relative;
+      padding: 1.05rem 1.15rem;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(165deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.62) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      box-shadow: var(--shadow-sm);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
+      transition: transform 0.28s var(--ease-out), box-shadow 0.28s var(--ease-out);
     }
+
+    .insight-card:first-of-type {
+      border-left: 3px solid var(--power-teal);
+    }
+
+    .insight-card:last-of-type {
+      border-left: 3px solid var(--power-amber);
+    }
+
+    .insight-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
     .insight-card .label {
       display: flex;
       align-items: center;
       gap: 0.42rem;
       color: var(--muted);
-      font-size: 0.78rem;
-      margin-bottom: 0.35rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 0.38rem;
     }
-    .insight-card .label .icon { font-size: 1.75em; }
+
+    .insight-card .label .icon { font-size: 1.6em; }
+
     .insight-card .headline {
+      font-family: var(--font-display);
       color: var(--text);
-      font-size: 1.08rem;
-      font-weight: 750;
-      margin-bottom: 0.3rem;
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 0.32rem;
+      line-height: 1.35;
     }
+
     .insight-card .desc {
       color: var(--muted);
       font-size: 0.82rem;
+      line-height: 1.55;
     }
+
     .chart-guide {
       color: var(--muted);
       font-size: 0.78rem;
-      margin: -0.15rem 0 0.65rem;
+      margin: -0.1rem 0 0.7rem;
+      line-height: 1.5;
     }
+
     .formula-mini {
-      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
       color: var(--muted);
-      margin-top: 0.2rem;
-      line-height: 1.35;
-      font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace;
-      opacity: 0.92;
+      margin-top: 0.22rem;
+      line-height: 1.4;
+      opacity: 0.9;
     }
+
     .formula-panel {
       grid-column: 1 / -1;
-      border-radius: 20px;
+      border-radius: var(--radius);
       overflow: hidden;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      box-shadow: var(--shadow-sm);
     }
+
     .formula-panel > summary {
       list-style: none;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.9rem 1.1rem;
+      padding: 0.95rem 1.15rem;
       cursor: pointer;
+      font-family: var(--font-display);
       font-weight: 700;
       color: var(--text);
+      transition: background 0.2s var(--ease-out);
     }
+
+    .formula-panel > summary:hover { background: rgba(255, 255, 255, 0.45); }
     .formula-panel > summary::-webkit-details-marker { display: none; }
+
     .formula-panel > summary::after {
       content: "展开";
-      color: var(--muted);
-      font-size: 0.78rem;
-      font-weight: 500;
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 0.22rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(3, 105, 161, 0.08);
     }
+
     .formula-panel[open] > summary::after { content: "收起"; }
+
     .formula-content {
-      padding: 0 1.1rem 1rem;
+      padding: 0 1.15rem 1.1rem;
       display: grid;
-      gap: 0.85rem;
+      gap: 0.9rem;
     }
+
     .formula-group h3 {
+      font-family: var(--font-display);
       font-size: 0.82rem;
       font-weight: 700;
-      margin-bottom: 0.35rem;
-      color: var(--text);
+      margin-bottom: 0.38rem;
+      color: var(--accent-deep);
     }
+
     .formula-list {
       list-style: none;
       display: grid;
-      gap: 0.35rem;
+      gap: 0.38rem;
     }
+
     .formula-list li {
       font-size: 0.76rem;
       color: var(--muted);
-      line-height: 1.45;
+      line-height: 1.5;
     }
-    .formula-list code {
-      font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace;
-      font-size: 0.74rem;
-      color: var(--text);
-      background: rgba(37, 99, 235, 0.08);
-      padding: 0.1rem 0.35rem;
-      border-radius: 6px;
-    }
+
     .section-label {
       grid-column: 1 / -1;
       display: flex;
       align-items: center;
       gap: 0.65rem;
       color: var(--text);
+      font-family: var(--font-display);
       font-weight: 800;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       margin-top: 0.1rem;
     }
+
     .section-label span {
       color: var(--muted);
       font-size: 0.78rem;
       font-weight: 500;
       letter-spacing: 0;
+      font-family: var(--font-body);
     }
+
     .scope-tag {
       display: inline-flex;
       align-items: center;
       margin-left: 0.45rem;
-      padding: 0.18rem 0.48rem;
+      padding: 0.18rem 0.52rem;
       border-radius: 999px;
       color: #fff;
-      font-size: 0.68rem;
-      font-weight: 600;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
       vertical-align: middle;
     }
-    .scope-current { background: linear-gradient(135deg, #2563eb, #0ea5e9); }
+
+    .scope-current { background: linear-gradient(135deg, #0369a1, #0ea5e9); }
     .scope-all { background: linear-gradient(135deg, #64748b, #475569); }
 
-    /* Light glass dashboard theme */
-    :root {
-      --bg: #eef5ff;
-      --panel: rgba(255, 255, 255, 0.68);
-      --panel-strong: rgba(255, 255, 255, 0.86);
-      --border: rgba(76, 104, 140, 0.18);
-      --text: #142033;
-      --muted: #64748b;
-      --accent: #2563eb;
-      --accent-2: #0ea5e9;
-      --green: #059669;
-      --red: #dc2626;
-      --gold: #b45309;
-      --shadow: 0 18px 46px rgba(76, 104, 140, 0.18);
-    }
-    body {
-      background:
-        radial-gradient(circle at 12% 4%, rgba(96, 165, 250, 0.34), transparent 28rem),
-        radial-gradient(circle at 86% 12%, rgba(125, 211, 252, 0.3), transparent 24rem),
-        linear-gradient(135deg, #f8fbff 0%, #edf5ff 48%, #f7fbff 100%);
-      color: var(--text);
-    }
-    body::before {
-      background-image:
-        linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px);
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.42), transparent 72%);
-    }
-    header {
-      background: rgba(255, 255, 255, 0.64);
-      box-shadow: 0 10px 34px rgba(76, 104, 140, 0.12);
-    }
-    .toolbar-group,
-    select,
-    .btn,
-    .empty-card,
-    .stat-card,
-    section.block,
-    .details-panel {
-      background: var(--panel);
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-    }
-    .btn.primary {
-      color: #fff;
-      background: linear-gradient(135deg, #2563eb, #0ea5e9);
-      border-color: rgba(255, 255, 255, 0.82);
-    }
-    .btn:not(.primary), select {
-      background: rgba(255, 255, 255, 0.74);
-      color: var(--text);
-    }
-    .empty-card,
-    .stat-card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.58));
-    }
-    .stat-card::after {
-      background: linear-gradient(90deg, transparent, rgba(37,99,235,0.6), transparent);
-    }
     .dashboard-shell {
       grid-column: 1 / -1;
       display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 1rem;
       min-height: calc(100vh - 124px);
-      align-content: start;
+      align-items: stretch;
     }
+
     .dashboard-shell .overview { grid-column: 1 / -1; }
     .hero-chart { grid-column: span 6; }
     .side-chart { grid-column: span 6; }
-    .third-chart { grid-column: span 4; }
+    .third-chart {
+      grid-column: span 4;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .third-chart #chartSegment {
+      flex: 1 1 auto;
+      min-height: 300px;
+      height: auto !important;
+    }
+
+    .third-chart .segment-table-wrap {
+      margin-top: auto;
+      flex-shrink: 0;
+    }
     .half-chart { grid-column: span 6; }
+
     .right-column {
       grid-column: span 6;
       display: grid;
       gap: 1rem;
     }
+
     .dashboard-shell .chart { height: 300px; }
     .dashboard-shell .chart.short { height: 250px; }
     .dashboard-shell .chart.tall { height: 300px; }
+
     .details-panel {
       grid-column: 1 / -1;
-      border-radius: 22px;
+      border-radius: var(--radius);
       overflow: hidden;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      box-shadow: var(--shadow-sm);
     }
+
     .details-panel > summary {
       list-style: none;
       display: flex;
@@ -514,38 +976,42 @@
       padding: 1rem 1.2rem;
       cursor: pointer;
       color: var(--text);
+      font-family: var(--font-display);
       font-weight: 700;
+      transition: background 0.2s var(--ease-out);
     }
+
+    .details-panel > summary:hover { background: rgba(255, 255, 255, 0.45); }
     .details-panel > summary::-webkit-details-marker { display: none; }
+
     .details-panel > summary::after {
       content: "展开";
       color: var(--accent);
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(3, 105, 161, 0.08);
     }
+
     .details-panel[open] > summary::after { content: "收起"; }
+
     .details-content {
       display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 1rem;
       padding: 0 1rem 1rem;
     }
-    .table-wrap {
-      background: rgba(255,255,255,0.48);
-      border-color: rgba(76, 104, 140, 0.12);
-    }
-    th {
-      color: #334155;
-      background: rgba(241, 245, 249, 0.92);
-    }
-    tr:hover td { background: rgba(37, 99, 235, 0.06); }
-    .day-stats span {
-      background: rgba(255,255,255,0.56);
-      border-color: rgba(76, 104, 140, 0.16);
-    }
+
     @media (max-width: 1200px) {
       .hero-chart, .side-chart, .third-chart, .half-chart, .right-column { grid-column: span 12; }
       .dashboard-shell { min-height: auto; }
+      .third-chart #chartSegment {
+        flex: none;
+        min-height: 0;
+        height: 240px !important;
+      }
+      .third-chart .segment-table-wrap { margin-top: 0.75rem; }
       .insight-panel { grid-template-columns: 1fr; }
       .top-summary-row { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
     }
@@ -554,17 +1020,20 @@
       header {
         flex-direction: column;
         align-items: stretch;
-        padding: 1rem 1rem 0.75rem;
+        padding: 1rem 1rem 0.85rem;
         gap: 0.75rem;
       }
-      header h1 { font-size: 1.25rem; }
+
+      header h1 { font-size: 1.28rem; }
       header p { font-size: 0.8rem; }
+
       .toolbar {
         width: 100%;
         flex-direction: column;
         align-items: stretch;
         gap: 0.65rem;
       }
+
       .toolbar-group {
         width: 100%;
         flex-wrap: wrap;
@@ -572,70 +1041,78 @@
         border-radius: 16px;
         padding: 0.65rem;
       }
+
       .file-status {
         max-width: none;
         white-space: normal;
         text-align: center;
         line-height: 1.45;
-        font-size: 0.75rem;
+        font-size: 0.74rem;
       }
+
       .btn, select, label.btn {
         min-height: 44px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
       }
+
       select { min-width: 0; width: 100%; }
-      main { padding: 0.75rem 0.75rem 1.25rem; }
-      .err { padding: 0.5rem 0.75rem 0; }
+      main { padding: 0.85rem 0.85rem 1.35rem; }
+      .err { padding: 0.5rem 0.85rem 0; }
+
       .empty { min-height: calc(100vh - 180px); padding: 0 0.5rem; }
-      .empty-card { padding: 1.5rem 1rem; border-radius: 18px; }
-      .empty-title { font-size: 1.1rem; }
+      .empty-card { padding: 1.65rem 1.15rem; border-radius: 18px; }
+      .empty-title { font-size: 1.12rem; }
+
       .top-summary-row {
         grid-template-columns: 1fr;
         gap: 0.75rem;
       }
-      .stat-card .value { font-size: 1.2rem; }
-      .insight-card .headline { font-size: 0.98rem; }
+
+      .stat-card .value { font-size: 1.22rem; }
+      .insight-card .headline { font-size: 1rem; }
+
       section.block {
-        padding: 0.85rem;
+        padding: 0.9rem;
         border-radius: 16px;
       }
+
       section.block h2 { font-size: 0.92rem; line-height: 1.4; }
+
       .block-title {
         flex-direction: column;
         align-items: stretch;
         gap: 0.5rem;
       }
+
       .block-title h2 { width: 100%; }
-      .card-day-select {
-        width: 100%;
-        min-width: 0;
-      }
+      .day-picker { width: 100%; min-width: 0; }
+      .day-picker-panel { left: 0; right: 0; width: 100%; }
+
       .scope-tag {
         margin-left: 0;
         margin-top: 0.25rem;
         vertical-align: middle;
       }
+
       .section-label {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.25rem;
         font-size: 0.9rem;
       }
+
       .section-label span { font-size: 0.72rem; }
+
       .dashboard-shell .chart { height: 260px; }
       .dashboard-shell .chart.short { height: 220px; }
       .dashboard-shell .chart.tall { height: 280px; }
+
       .day-stats { gap: 0.5rem; }
-      .day-stats span {
-        font-size: 0.72rem;
-        padding: 0.4rem 0.6rem;
-      }
-      .table-wrap {
-        -webkit-overflow-scrolling: touch;
-        overflow-x: auto;
-      }
+      .day-stats span { font-size: 0.72rem; padding: 0.38rem 0.58rem; }
+
+      .table-wrap { -webkit-overflow-scrolling: touch; overflow-x: auto; }
       .detail-table { font-size: 0.82rem; min-width: 640px; }
       #summaryTable.detail-table { min-width: 900px; }
       .details-content section.block { grid-column: span 12; }
@@ -643,14 +1120,25 @@
     }
 
     @media (max-width: 480px) {
-      header h1 { font-size: 1.1rem; }
-      .stat-card { padding: 0.85rem; }
-      .stat-card .label { font-size: 0.68rem; }
-      .stat-card .value { font-size: 1.05rem; }
-      .insight-card { padding: 0.85rem; }
+      header h1 { font-size: 1.08rem; }
+      .stat-card { padding: 0.88rem; }
+      .stat-card .label { font-size: 0.66rem; }
+      .stat-card .value { font-size: 1.06rem; }
+      .insight-card { padding: 0.88rem; }
       .chart-guide, section.block .hint { font-size: 0.72rem; }
       .dashboard-shell .chart { height: 240px; }
       .dashboard-shell .chart.tall { height: 260px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .stat-card:hover, .insight-card:hover, section.block:hover, .btn:hover {
+        transform: none;
+      }
     }
   </style>
 </head>
@@ -683,7 +1171,6 @@
       <button type="button" id="reimportBtn" class="btn primary hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-refresh"></use></svg>重新导入</button>
       <div class="toolbar-group hidden" id="analysisControls">
         <span id="fileStatus" class="file-status hidden"></span>
-        <select id="daySelect" class="hidden"></select>
       </div>
     </div>
   </header>
@@ -691,6 +1178,7 @@
   <main>
     <div id="emptyState" class="empty">
       <div class="empty-card">
+        <div class="empty-orbit" aria-hidden="true"></div>
         <p class="empty-title icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-upload"></use></svg>导入电价 xlsx，生成大屏分析</p>
         <p class="empty-desc">工作表名如 5.12；时刻顺序 1:00→23:00→0:00（24 点）；日期列合并单元格会自动向下填充。</p>
         <label for="fileInput" class="btn primary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-upload"></use></svg>选择 xlsx 文件</label>
@@ -754,7 +1242,17 @@
         <section class="block hero-chart">
           <div class="block-title">
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-line"></use></svg>分时电价曲线（日前 / 实时 / 滚动撮合）</h2>
-            <select class="card-day-select" aria-label="选择当前日期"></select>
+            <div class="day-picker card-day-picker" data-day-picker>
+              <button type="button" class="day-picker-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="选择当前日期">
+                <span class="day-picker-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#icon-calendar"></use></svg></span>
+                <span class="day-picker-value">选择日期</span>
+                <span class="day-picker-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="day-picker-panel hidden" role="listbox" aria-label="日期列表">
+                <div class="day-picker-panel-head">选择分析日期</div>
+                <ul class="day-picker-list"></ul>
+              </div>
+            </div>
           </div>
           <p class="chart-guide">纵轴为电价（元/MWh）。<code>价差ₜ = 实时ₜ − 日前ₜ</code>。三条线越分开，差异越明显。</p>
           <div id="chartPrice" class="chart"></div>
@@ -763,7 +1261,17 @@
         <section class="block side-chart">
           <div class="block-title">
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-spread"></use></svg>分时价差（实时 − 日前）</h2>
-            <select class="card-day-select" aria-label="选择当前日期"></select>
+            <div class="day-picker card-day-picker" data-day-picker>
+              <button type="button" class="day-picker-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="选择当前日期">
+                <span class="day-picker-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#icon-calendar"></use></svg></span>
+                <span class="day-picker-value">选择日期</span>
+                <span class="day-picker-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="day-picker-panel hidden" role="listbox" aria-label="日期列表">
+                <div class="day-picker-panel-head">选择分析日期</div>
+                <ul class="day-picker-list"></ul>
+              </div>
+            </div>
           </div>
           <p class="chart-guide"><code>价差ₜ = 实时ₜ − 日前ₜ</code>；红色为正（实时更贵），绿色为负，柱子越高偏差越大。</p>
           <div id="chartSpread" class="chart"></div>
@@ -772,12 +1280,22 @@
         <section class="block third-chart" id="dayDetailBlock">
           <div class="block-title">
             <h2 class="icon-label"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-clock"></use></svg>分时段汇总（峰 / 平 / 谷）</h2>
-            <select class="card-day-select" aria-label="选择当前日期"></select>
+            <div class="day-picker card-day-picker" data-day-picker>
+              <button type="button" class="day-picker-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="选择当前日期">
+                <span class="day-picker-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#icon-calendar"></use></svg></span>
+                <span class="day-picker-value">选择日期</span>
+                <span class="day-picker-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="day-picker-panel hidden" role="listbox" aria-label="日期列表">
+                <div class="day-picker-panel-head">选择分析日期</div>
+                <ul class="day-picker-list"></ul>
+              </div>
+            </div>
           </div>
           <p class="hint">段内 <code>日前均/实时均/价差均/滚动均</code> 均为该段非空点的算术平均；占比见下方文字。</p>
           <div class="day-stats" id="daySpreadStats"></div>
-          <div id="chartSegment" class="chart short"></div>
-          <div class="table-wrap" style="margin-top:0.75rem;">
+          <div id="chartSegment" class="chart"></div>
+          <div class="table-wrap segment-table-wrap">
             <table id="segmentTable">
               <thead>
                 <tr>
@@ -898,10 +1416,13 @@
     let parsedDays = [];
     let charts = {};
     let lastSummaries = [];
+    let entranceTl = null;
+    let segmentChartSwitchTl = null;
+    let dayPickerPanelTl = null;
+    let selectedSheetName = '';
 
     const fileInput = document.getElementById('fileInput');
-    const daySelect = document.getElementById('daySelect');
-    const cardDaySelects = Array.from(document.querySelectorAll('.card-day-select'));
+    const cardDayPickers = Array.from(document.querySelectorAll('[data-day-picker]'));
     const importGroup = document.getElementById('importGroup');
     const reimportBtn = document.getElementById('reimportBtn');
     const analysisControls = document.getElementById('analysisControls');
@@ -1275,6 +1796,43 @@
       return charts[id];
     }
 
+    function getOrInitChart(id) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      if (!charts[id]) charts[id] = echarts.init(el, null, { renderer: 'canvas' });
+      return charts[id];
+    }
+
+    function disposeChart(id) {
+      if (charts[id]) {
+        charts[id].dispose();
+        delete charts[id];
+      }
+    }
+
+    function segmentChartMotion() {
+      return prefersReducedMotion()
+        ? { animation: false, animationDurationUpdate: 0 }
+        : {
+          animation: true,
+          animationDuration: 520,
+          animationDurationUpdate: 520,
+          animationEasing: 'cubicOut',
+          animationEasingUpdate: 'cubicOut'
+        };
+    }
+
+    function animateSegmentChartSwitch() {
+      const el = document.getElementById('chartSegment');
+      if (!el || prefersReducedMotion() || typeof gsap === 'undefined') return;
+      segmentChartSwitchTl?.kill();
+      segmentChartSwitchTl = gsap.fromTo(
+        el,
+        { autoAlpha: 0.35, y: 10, scale: 0.985, transformOrigin: '50% 100%' },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.42, ease: 'power2.out', clearProps: 'transform' }
+      );
+    }
+
     const axisStyle = { color: '#64748b' };
     const gridLine = { lineStyle: { color: 'rgba(100, 116, 139, 0.18)' } };
 
@@ -1405,8 +1963,164 @@
     }
 
     function getSelectedDay() {
-      return parsedDays.find((d) => d.sheetName === daySelect.value) || parsedDays[0];
+      return parsedDays.find((d) => d.sheetName === selectedSheetName) || parsedDays[0];
     }
+
+    function dayOptionLabel(d) {
+      return d.calendarDate && /^\d{4}-\d{2}-\d{2}$/.test(d.calendarDate)
+        ? `${d.sheetName}（${d.calendarDate}）`
+        : d.sheetName;
+    }
+
+    function prefersReducedMotion() {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    function populateDayPickers() {
+      cardDayPickers.forEach((picker) => {
+        const list = picker.querySelector('.day-picker-list');
+        list.replaceChildren(...parsedDays.map((d) => {
+          const li = document.createElement('li');
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'day-picker-option';
+          btn.role = 'option';
+          btn.dataset.value = d.sheetName;
+          btn.setAttribute('aria-selected', 'false');
+          const label = document.createElement('span');
+          label.className = 'day-picker-option-label';
+          label.textContent = dayOptionLabel(d);
+          btn.appendChild(label);
+          li.appendChild(btn);
+          return li;
+        }));
+      });
+    }
+
+    function syncCardDayPickers(sheetName) {
+      selectedSheetName = sheetName;
+      const day = parsedDays.find((d) => d.sheetName === sheetName);
+      const labelText = day ? dayOptionLabel(day) : '选择日期';
+      cardDayPickers.forEach((picker) => {
+        picker.querySelector('.day-picker-value').textContent = labelText;
+        picker.querySelectorAll('.day-picker-option').forEach((opt) => {
+          const on = opt.dataset.value === sheetName;
+          opt.classList.toggle('is-active', on);
+          opt.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      });
+    }
+
+    function finishCloseDayPicker(picker) {
+      const panel = picker.querySelector('.day-picker-panel');
+      const trigger = picker.querySelector('.day-picker-trigger');
+      const chevron = picker.querySelector('.day-picker-chevron');
+      panel.classList.add('hidden');
+      picker.classList.remove('is-open');
+      trigger.setAttribute('aria-expanded', 'false');
+      if (typeof gsap !== 'undefined') {
+        gsap.set(panel, { clearProps: 'all' });
+        gsap.set(panel.querySelectorAll('.day-picker-option'), { clearProps: 'all' });
+        gsap.set(chevron, { clearProps: 'transform' });
+      }
+    }
+
+    function closeDayPicker(picker, immediate = false) {
+      if (!picker.classList.contains('is-open')) return;
+      const panel = picker.querySelector('.day-picker-panel');
+      const options = panel.querySelectorAll('.day-picker-option');
+      const chevron = picker.querySelector('.day-picker-chevron');
+
+      if (!immediate && !prefersReducedMotion() && typeof gsap !== 'undefined') {
+        gsap.to(chevron, { rotation: 45, duration: 0.1, ease: 'power3.in', overwrite: true });
+      }
+
+      if (immediate || prefersReducedMotion() || typeof gsap === 'undefined') {
+        dayPickerPanelTl?.kill();
+        finishCloseDayPicker(picker);
+        return;
+      }
+
+      dayPickerPanelTl?.kill();
+      gsap.set(options, { autoAlpha: 0 });
+      dayPickerPanelTl = gsap.timeline({ onComplete: () => finishCloseDayPicker(picker) });
+      dayPickerPanelTl.to(panel, {
+        autoAlpha: 0,
+        y: -4,
+        scale: 0.98,
+        duration: 0.11,
+        ease: 'power4.in'
+      });
+    }
+
+    function closeAllDayPickers(except = null) {
+      cardDayPickers.forEach((p) => {
+        if (p !== except) closeDayPicker(p, true);
+      });
+    }
+
+    function openDayPicker(picker) {
+      closeAllDayPickers(picker);
+      const panel = picker.querySelector('.day-picker-panel');
+      const trigger = picker.querySelector('.day-picker-trigger');
+      const options = panel.querySelectorAll('.day-picker-option');
+      const chevron = picker.querySelector('.day-picker-chevron');
+
+      trigger.setAttribute('aria-expanded', 'true');
+      picker.classList.add('is-open');
+      panel.classList.remove('hidden');
+
+      const active = panel.querySelector('.day-picker-option.is-active');
+      active?.scrollIntoView({ block: 'nearest' });
+
+      if (prefersReducedMotion() || typeof gsap === 'undefined') {
+        return;
+      }
+
+      dayPickerPanelTl?.kill();
+      gsap.set(panel, { autoAlpha: 0, y: -8, scale: 0.97, transformOrigin: 'top right' });
+      gsap.set(options, { autoAlpha: 0, x: -10 });
+      gsap.to(chevron, { rotation: 225, duration: 0.28, ease: 'back.out(1.6)', overwrite: true });
+
+      dayPickerPanelTl = gsap.timeline();
+      dayPickerPanelTl
+        .to(panel, { autoAlpha: 1, y: 0, scale: 1, duration: 0.3, ease: 'power3.out' })
+        .to(options, {
+          autoAlpha: 1,
+          x: 0,
+          duration: 0.24,
+          stagger: 0.035,
+          ease: 'power2.out'
+        }, '-=0.16');
+    }
+
+    function initDayPickers() {
+      cardDayPickers.forEach((picker) => {
+        const trigger = picker.querySelector('.day-picker-trigger');
+        const list = picker.querySelector('.day-picker-list');
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (picker.classList.contains('is-open')) closeDayPicker(picker);
+          else openDayPicker(picker);
+        });
+
+        list.addEventListener('click', (e) => {
+          const opt = e.target.closest('.day-picker-option');
+          if (!opt) return;
+          e.stopPropagation();
+          applySelectedDay(opt.dataset.value);
+          closeDayPicker(picker);
+        });
+      });
+
+      document.addEventListener('click', () => closeAllDayPickers());
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAllDayPickers();
+      });
+    }
+
+    initDayPickers();
 
     function renderDayDetail(day) {
       const dir = spreadDirection(day.points);
@@ -1436,7 +2150,12 @@
         </tr>`;
       }).join('');
 
-      initChart('chartSegment').setOption({
+      const chart = getOrInitChart('chartSegment');
+      if (!chart) return;
+
+      const barDelay = (idx) => (prefersReducedMotion() ? 0 : idx * 70);
+      chart.setOption({
+        ...segmentChartMotion(),
         backgroundColor: 'transparent',
         tooltip: { trigger: 'axis' },
         legend: { data: ['日前均', '实时均', '价差均'], textStyle: { color: '#64748b' } },
@@ -1444,12 +2163,14 @@
         xAxis: categoryAxis(segs.map((s) => s.name)),
         yAxis: { type: 'value', axisLabel: axisStyle, splitLine: gridLine },
         series: [
-          { name: '日前均', type: 'bar', data: segs.map((s) => s.dayAheadMean) },
-          { name: '实时均', type: 'bar', data: segs.map((s) => s.realTimeMean) },
-          { name: '价差均', type: 'line', data: segs.map((s) => s.spreadMean), smooth: true }
+          { name: '日前均', type: 'bar', data: segs.map((s) => s.dayAheadMean), animationDelay: barDelay },
+          { name: '实时均', type: 'bar', data: segs.map((s) => s.realTimeMean), animationDelay: (idx) => barDelay(idx) + 35 },
+          { name: '价差均', type: 'line', data: segs.map((s) => s.spreadMean), smooth: true, animationDelay: prefersReducedMotion() ? 0 : 200 }
         ],
         color: ['#3b82f6', '#f59e0b', '#ef4444']
-      }, true);
+      });
+      animateSegmentChartSwitch();
+      requestAnimationFrame(() => chart.resize());
     }
 
     function renderDayCharts(day) {
@@ -1623,6 +2344,67 @@
       renderCrossDayCharts(lastSummaries);
     }
 
+    function resetEntranceVisuals() {
+      if (typeof gsap === 'undefined') return;
+      const content = document.getElementById('content');
+      const shell = content?.querySelector('.dashboard-shell');
+      const targets = [
+        shell,
+        content,
+        ...document.querySelectorAll('.stat-card, .insight-card, .formula-panel, section.block'),
+        reimportBtn,
+        analysisControls
+      ].filter(Boolean);
+      gsap.set(targets, {
+        autoAlpha: 1,
+        opacity: 1,
+        visibility: 'visible',
+        scale: 1,
+        y: 0,
+        clearProps: 'all'
+      });
+    }
+
+    function playEntranceAnimation() {
+      if (typeof gsap === 'undefined') return;
+
+      entranceTl?.kill();
+      entranceTl = null;
+
+      const content = document.getElementById('content');
+      if (!content || content.classList.contains('hidden')) return;
+
+      const shell = content.querySelector('.dashboard-shell');
+      const stats = content.querySelectorAll('.stat-card');
+      const insights = content.querySelectorAll('.insight-card');
+      const formulaPanel = content.querySelector('.formula-panel');
+      const blocks = content.querySelectorAll('section.block');
+      const toolbarItems = [reimportBtn, analysisControls].filter(Boolean);
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        resetEntranceVisuals();
+        return;
+      }
+
+      /* 先恢复可见态，再 from()：勿先 set(autoAlpha:0)，否则 from 的起止都是 0 等于没动画 */
+      resetEntranceVisuals();
+
+      entranceTl = gsap.timeline({
+        defaults: { ease: 'power2.out' },
+        onComplete: resetEntranceVisuals,
+        onInterrupt: resetEntranceVisuals
+      });
+
+      /* 勿对 #content 设 autoAlpha：父级透明会让子元素全部不可见 */
+      entranceTl
+        .from(shell, { autoAlpha: 0, duration: 0.28, ease: 'power1.out' })
+        .from(toolbarItems, { y: -12, autoAlpha: 0, duration: 0.38, stagger: 0.06 }, '-=0.12')
+        .from(stats, { autoAlpha: 0, scale: 0.98, duration: 0.36, stagger: 0.05, transformOrigin: '50% 100%' }, '-=0.1')
+        .from(insights, { autoAlpha: 0, scale: 0.98, duration: 0.36, stagger: 0.07, transformOrigin: '50% 100%' }, '-=0.18')
+        .from(formulaPanel, { autoAlpha: 0, duration: 0.3 }, '-=0.08')
+        .from(blocks, { autoAlpha: 0, duration: 0.4, stagger: 0.05 }, '+=0.04');
+    }
+
     function setupLoadedView(selectedSheet = parsedDays[0]?.sheetName) {
       document.getElementById('emptyState').classList.add('hidden');
       document.getElementById('content').classList.remove('hidden');
@@ -1633,26 +2415,26 @@
 
       const totalRows = parsedDays.reduce((sum, d) => sum + d.points.length, 0);
       fileStatus.textContent = `当前文件：${currentFileName || '缓存数据'} · 工作表数 ${parsedDays.length} · 总数据行 ${totalRows}`;
-      const dayOptions = parsedDays.map((d) => {
-        const label = d.calendarDate && /^\d{4}-\d{2}-\d{2}$/.test(d.calendarDate)
-          ? `${d.sheetName}（${d.calendarDate}）`
-          : d.sheetName;
-        return `<option value="${d.sheetName}">${label}</option>`;
-      }).join('');
-      daySelect.innerHTML = dayOptions;
-      cardDaySelects.forEach((select) => { select.innerHTML = dayOptions; });
-      daySelect.value = parsedDays.some((d) => d.sheetName === selectedSheet)
+      populateDayPickers();
+      const sheet = parsedDays.some((d) => d.sheetName === selectedSheet)
         ? selectedSheet
         : parsedDays[0].sheetName;
-      cardDaySelects.forEach((select) => { select.value = daySelect.value; });
+      syncCardDayPickers(sheet);
+      disposeChart('chartSegment');
       renderAll();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          playEntranceAnimation();
+          Object.values(charts).forEach((c) => c?.resize());
+        });
+      });
     }
 
     function saveCache() {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({
           fileName: currentFileName,
-          selectedSheet: daySelect.value,
+          selectedSheet: selectedSheetName,
           parsedDays,
           savedAt: Date.now()
         }));
@@ -1720,24 +2502,13 @@
 
     function applySelectedDay(sheetName) {
       if (!parsedDays.length) return;
-      daySelect.value = sheetName;
-      cardDaySelects.forEach((select) => { select.value = sheetName; });
+      syncCardDayPickers(sheetName);
       const day = getSelectedDay();
       renderInsightPanel(lastSummaries, day);
       renderDayDetail(day);
       renderDayCharts(day);
       saveCache();
     }
-
-    daySelect.addEventListener('change', () => {
-      applySelectedDay(daySelect.value);
-    });
-
-    cardDaySelects.forEach((select) => {
-      select.addEventListener('change', () => {
-        applySelectedDay(select.value);
-      });
-    });
 
     document.querySelector('.formula-panel')?.addEventListener('toggle', (e) => {
       if (e.currentTarget.open) {
@@ -1750,6 +2521,7 @@
       }
     });
     window.addEventListener('resize', () => Object.values(charts).forEach((c) => c?.resize()));
+    resetEntranceVisuals();
     restoreCache();
   </script>
 </body>
